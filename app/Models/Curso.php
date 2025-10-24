@@ -9,10 +9,33 @@ class Curso extends Model
 {
     use HasFactory;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_curso'; // <-- ¡Añade esta línea!
+    protected $table = 'cursos';
+    protected $primaryKey = 'Id_curso';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'Titulo',
+        'Descripc',
+        'Duracion',
+        'Costo',
+        'Estado'
+    ];
+
+    // Relación con módulos
+    public function modulos()
+    {
+        return $this->hasMany(Modulo::class, 'id_curso');
+    }
+
+    // Relación con inscripciones
+    public function inscripciones()
+    {
+        return $this->hasMany(Inscripcion::class, 'id_curso');
+    }
+
+    // Relación con actividades
+    public function actividades()
+    {
+        return $this->hasMany(ActividadComplementaria::class, 'id_curso');
+    }
 }

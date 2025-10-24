@@ -9,10 +9,12 @@ class Rol extends Model
 {
     use HasFactory;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_rol'; // <-- ¡Añade esta línea!
+    protected $table = 'roles';
+    protected $primaryKey = 'Id_rol';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'Nombre',
+        'Descripcion'
+    ];
 }

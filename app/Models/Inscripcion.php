@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models; // <-- ¡Esta línea es CRUCIAL! Debe ser App\Models
+namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,10 +9,24 @@ class Inscripcion extends Model
 {
     use HasFactory;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_inscripcion'; // <-- El ajuste que hicimos antes.
+    protected $table = 'inscripciones';
+    protected $primaryKey = 'Id_inscripcion';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'Id_usuario',
+        'Id_curso',
+        'Fecha_inscripcion',
+        'Estado'
+    ];
+
+    public function usuario()
+    {
+        return $this->belongsTo(User::class, 'id_usuario');
+    }
+
+    public function curso()
+    {
+        return $this->belongsTo(Curso::class, 'id_curso');
+    }
 }
