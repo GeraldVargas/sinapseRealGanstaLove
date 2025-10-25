@@ -9,17 +9,18 @@ class ProgresoTema extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'progreso_tema'; // <-- Indica el nombre exacto de la tabla.
+    protected $table = 'progreso_tema';
+    protected $primaryKey = 'id_progreso';
+    public $timestamps = false;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_progreso_tema'; // <-- Indica el nombre de tu ID.
+    protected $fillable = [
+        'Id_tema',
+        'completado',
+        'Fecha_completado'
+    ];
+
+    public function tema()
+    {
+        return $this->belongsTo(Tema::class, 'Id_tema');
+    }
 }

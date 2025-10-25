@@ -9,17 +9,22 @@ class Pago extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'pago'; // <-- Indica el nombre singular de la tabla.
+    protected $table = 'pago';
+    protected $primaryKey = 'Id_pago';
+    public $timestamps = false;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_pago'; // <-- Indica el nombre de tu ID.
+    protected $fillable = [
+        'Id_inscripcion',
+        'Monto',
+        'Puntos_usad',
+        'Modalid',
+        'Fecha_pago',
+        'Estado',
+        'Metodo'
+    ];
+
+    public function inscripcion()
+    {
+        return $this->belongsTo(Inscripcion::class, 'Id_inscripcion');
+    }
 }

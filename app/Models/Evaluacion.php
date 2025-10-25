@@ -9,10 +9,20 @@ class Evaluacion extends Model
 {
     use HasFactory;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_evaluacion'; // <-- ¡Añade esta línea!
+    protected $table = 'evaluaciones';
+    protected $primaryKey = 'id_evaluacion';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'id_tema',
+        'Tipo',
+        'Puntaje_maximo',
+        'Fecha_inicio',
+        'fecha_fin'
+    ];
+
+    public function tema()
+    {
+        return $this->belongsTo(Tema::class, 'id_tema');
+    }
 }

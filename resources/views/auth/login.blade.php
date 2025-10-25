@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SINAPSE</title>
+    <title>Iniciar Sesión - SINAPSE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .auth-container {
             min-height: 100vh;
@@ -12,24 +13,31 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
         
         .auth-card {
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 2.5rem;
             width: 100%;
             max-width: 400px;
+        }
+        
+        .sinapse-logo {
+            text-align: center;
+            margin-bottom: 2rem;
         }
     </style>
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
-            <div class="text-center mb-4">
-                <h2 class="fw-bold text-primary">SINAPSE</h2>
-                <p class="text-muted">Sistema de Aprendizaje</p>
+            <div class="sinapse-logo">
+                <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+                <h2 class="fw-bold">Iniciar Sesión</h2>
+                <p class="text-muted">Bienvenido de vuelta</p>
             </div>
 
             @if($errors->any())
@@ -58,9 +66,15 @@
                     <input type="password" class="form-control" id="password" name="password" required>
                 </div>
                 
-                <button type="submit" class="btn btn-primary w-100 mb-3">Iniciar Sesión</button>
+                <button type="submit" class="btn btn-primary w-100 mb-3 py-2 fw-bold">Iniciar Sesión</button>
             </form>
+            
+            <div class="text-center">
+                <p class="mb-0">¿No tienes cuenta? <a href="{{ route('register.form') }}" class="text-decoration-none">Regístrate aquí</a></p>
+            </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

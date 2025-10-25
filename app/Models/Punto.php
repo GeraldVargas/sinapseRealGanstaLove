@@ -5,29 +5,28 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class ProgresoCurso extends Model
+class Punto extends Model
 {
     use HasFactory;
 
-    protected $table = 'progreso_curso';
-    protected $primaryKey = 'Id_progreso';
+    protected $table = 'puntos';
+    protected $primaryKey = 'id_punto';
     public $timestamps = false;
 
     protected $fillable = [
+        'id_usuario',
+        'cantidad',
+        'tipo', // 'ganancia' o 'canje'
+        'concepto',
+        'fecha',
         'id_curso',
-        'id_Usuario',
-        'Fecha_actualizacion',
-        'Porcentaje',
-        'Nivel',
-        'Modulos_Com',
-        'Temas_Comple',
-        'Evaluaciones',
-        'Actividades_R'
+        'id_modulo',
+        'id_tema'
     ];
 
     public function usuario()
     {
-        return $this->belongsTo(Usuario::class, 'id_Usuario');
+        return $this->belongsTo(Usuario::class, 'id_usuario');
     }
 
     public function curso()

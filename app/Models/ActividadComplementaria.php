@@ -9,10 +9,19 @@ class ActividadComplementaria extends Model
 {
     use HasFactory;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_actividad_complementaria'; // <-- ¡Añade esta línea!
+    protected $table = 'actividades_complementarias';
+    protected $primaryKey = 'Id_actividad';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'id_curso',
+        'Tipo',
+        'Descripcion',
+        'Fecha'
+    ];
+
+    public function curso()
+    {
+        return $this->belongsTo(Curso::class, 'id_curso');
+    }
 }

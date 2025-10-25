@@ -1,27 +1,43 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\AdminController;
-use App\Http\Controllers\UsuarioController;
-use App\Http\Controllers\CursoController;
-use App\Http\Controllers\InsigniaController;
 
-// Ruta principal - Dashboard general
-Route::get('/', [DashboardController::class, 'index'])->name('home');
+// Rutas Públicas
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login.form');
+Route::post('/login', [AuthController::class, 'login'])->name('login');
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register.form');
+Route::post('/register', [AuthController::class, 'register'])->name('register');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Áreas por rol
-Route::get('/estudiante', [EstudianteController::class, 'index'])->name('estudiante.dashboard');
-Route::get('/docente', [DocenteController::class, 'index'])->name('docente.dashboard');
-Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
+// Ruta temporal para debug
+Route::get('/debug-session', function () {
+    echo "<h1>Session Data:</h1>";
+    echo "<pre>";
+    print_r(session()->all());
+    echo "</pre>";
+});
+// En routes/web.php - Agregar estas rutas para docente
+Route::prefix('docente')->group(function () {
+    Route::get('/dashboard', [DocenteController::class, 'dashboard'])->name('docente.dashboard');
+    Route::get('/curso/{id}', [DocenteController::class, 'verCurso'])->name('docente.curso.detalle');
+    Route::post('/evaluacion/crear', [DocenteController::class, 'crearEvaluacion'])->name('docente.evaluacion.crear');
+});
+// RUTAS PROTEGIDAS - SIN MIDDLEWARE POR AHORA
+Route::get('/estudiante/dashboard', [EstudianteController::class, 'dashboard'])->name('estudiante.dashboard');
+Route::get('/docente/dashboard', [DocenteController::class, 'dashboard'])->name('docente.dashboard');
+Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
 
-// Listados
-Route::get('/estudiantes', [UsuarioController::class, 'estudiantes'])->name('estudiantes.list');
-Route::get('/docentes', [UsuarioController::class, 'docentes'])->name('docentes.list');
-Route::get('/cursos', [CursoController::class, 'index'])->name('cursos.list');
-Route::get('/insignias', [InsigniaController::class, 'index'])->name('insignias.list');
-
-// Páginas comunes
-Route::get('/perfil', [DashboardController::class, 'perfil'])->name('perfil');
+Route::prefix('docente')->group(function () {
+    Route::get('/dashboard', [DocenteController::class, 'dashboard'])->name('docente.dashboard');
+    Route::get('/curso/{id}', [DocenteController::class, 'verCurso'])->name('docente.curso.detalle');
+    Route::post('/curso/{id}/estudiante/agregar', [DocenteController::class, 'agregarEstudiante'])->name('docente.estudiante.agregar');
+    Route::delete('/curso/{idCurso}/estudiante/{idEstudiante}', [DocenteController::class, 'eliminarEstudiante'])->name('docente.estudiante.eliminar');
+    Route::get('/curso/{idCurso}/estudiante/{idEstudiante}', [DocenteController::class, 'verDetalleEstudiante'])->name('docente.estudiante.detalle');
+    Route::post('/evaluacion/crear/{idCurso}', [DocenteController::class, 'crearEvaluacion'])->name('docente.evaluacion.crear');
+});
