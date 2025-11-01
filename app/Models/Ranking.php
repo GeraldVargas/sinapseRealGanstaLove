@@ -9,17 +9,18 @@ class Ranking extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'ranking'; // <-- Indica el nombre singular de la tabla.
+    protected $table = 'ranking';
+    protected $primaryKey = 'Id_ranking';
+    
+    protected $fillable = [
+        'Posicion', 
+        'Periodo'
+    ];
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_ranking'; // <-- Indica el nombre de tu ID.
+    public $timestamps = false;
+
+    public function gestionPuntos()
+    {
+        return $this->hasMany(GestionPuntos::class, 'Id_ranking', 'Id_ranking');
+    }
 }

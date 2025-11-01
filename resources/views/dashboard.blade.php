@@ -105,6 +105,7 @@
     <div class="col-md-3 mb-3">
         <a href="/insignias" class="text-decoration-none">
             <div class="stat-card clickable">
+                
                 <h3>{{ $estadisticas['total_insignias'] }}</h3>
                 <p class="mb-0">Insignias</p>
             </div>

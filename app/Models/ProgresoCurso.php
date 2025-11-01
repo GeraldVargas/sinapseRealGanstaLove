@@ -11,27 +11,28 @@ class ProgresoCurso extends Model
 
     protected $table = 'progreso_curso';
     protected $primaryKey = 'Id_progreso';
-    public $timestamps = false;
-
+    
     protected $fillable = [
-        'id_curso',
-        'id_Usuario',
+        'Id_usuario',
+        'Id_curso',
         'Fecha_actualizacion',
         'Porcentaje',
         'Nivel',
-        'Modulos_Com',
-        'Temas_Comple',
-        'Evaluaciones',
-        'Actividades_R'
+        'Modulos_completados',
+        'Temas_completados',
+        'Evaluaciones_superadas',
+        'Actividades_superadas'
     ];
+
+    public $timestamps = false;
 
     public function usuario()
     {
-        return $this->belongsTo(Usuario::class, 'id_Usuario');
+        return $this->belongsTo(User::class, 'Id_usuario');
     }
 
     public function curso()
     {
-        return $this->belongsTo(Curso::class, 'id_curso');
+        return $this->belongsTo(Curso::class, 'Id_curso');
     }
 }

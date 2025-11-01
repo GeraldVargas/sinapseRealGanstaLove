@@ -1,25 +1,32 @@
 <?php
+// app/Models/ProgresoEvaluacion.php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProgresoEvaluacion extends Model
 {
-    use HasFactory;
+    protected $table = 'progreso_evaluacion';
+    protected $primaryKey = 'Id_progreso_evaluacion';
+    
+    protected $fillable = [
+        'Id_evaluacion',
+        'Puntaje_obtenido',
+        'Porcentaje',
+        'Aprobado',
+        'Fecha_completado'
+    ];
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'progreso_evaluacion'; // <-- Indica el nombre exacto de la tabla.
+    public $timestamps = false;
 
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id_progreso_evaluacion'; // <-- Indica el nombre de tu ID.
+    public function evaluacion()
+    {
+        return $this->belongsTo(Evaluacion::class, 'Id_evaluacion');
+    }
+
+    public function progresoCurso()
+    {
+        return $this->belongsTo(ProgresoCurso::class, 'Id_progreso');
+    }
 }

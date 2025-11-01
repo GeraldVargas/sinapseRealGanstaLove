@@ -1,103 +1,131 @@
 <?php
+// app/Models/Usuario.php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
-class Usuario extends Model
+class Usuario extends Authenticatable
 {
-    use HasFactory;
+    use Notifiable;
 
     protected $table = 'usuarios';
     protected $primaryKey = 'Id_usuario';
-    public $timestamps = false;
 
     protected $fillable = [
         'Nombre',
-        'Apellido', 
+        'Apellido',
         'Email',
         'Contraseña',
-        'Fecha_registro',
         'Estado'
     ];
 
     protected $hidden = [
-        'Contraseña'
+        'Contraseña',
+        'remember_token',
     ];
 
-    // Relación con roles
+    public function getAuthPassword()
+    {
+        return $this->Contraseña;
+    }
+
+    // RELACIÓN CON ROLES
     public function roles()
     {
-        return $this->belongsToMany(Rol::class, 'rol_usuario', 'id_usuario', 'id_rol');
+        return $this->belongsToMany(Rol::class, 'rol_usuario', 'Id_usuario', 'Id_rol');
     }
 
-    // Relación con cursos a través de inscripciones
-    public function cursos()
+    // VERIFICAR SI TIENE UN ROL ESPECÍFICO
+    public function tieneRol($rol)
     {
-        return $this->belongsToMany(Curso::class, 'inscripciones', 'id_usuario', 'id_curso');
+        return $this->roles()->where('Nombre', $rol)->exists();
     }
 
-    // Relación con insignias
-    public function insignias()
+    // VERIFICAR SI ES ESTUDIANTE
+        public function esEstudiante()
     {
-        return $this->belongsToMany(Insignia::class, 'usuario_insignia', 'Id_usuario', 'Id_insignia')
-                    ->withPivot('Fecha_obtencion', 'Puntos_Obtenidos');
+        // Si ya tienes una relación con roles, usa esta:
+        if (method_exists($this, 'roles')) {
+            return $this->roles()->where('Nombre', 'estudiante')->exists();
+        }
+        
+        // Si no, verifica directamente en la tabla rol_usuario
+        return DB::table('rol_usuario')
+            ->where('Id_usuario', $this->Id_usuario)
+            ->whereIn('Id_rol', function($query) {
+                $query->select('Id_rol')
+                    ->from('roles')
+                    ->where('Nombre', 'estudiante');
+            })
+            ->exists();
     }
 
-    // Relación con progresos de curso
-    public function progresos()
+    // VERIFICAR SI ES DOCENTE
+    public function esDocente()
     {
-        return $this->hasMany(ProgresoCurso::class, 'id_Usuario');
+        if (method_exists($this, 'roles')) {
+            return $this->roles()->where('Nombre', 'docente')->exists();
+        }
+        
+        return DB::table('rol_usuario')
+            ->where('Id_usuario', $this->Id_usuario)
+            ->whereIn('Id_rol', function($query) {
+                $query->select('Id_rol')
+                    ->from('roles')
+                    ->where('Nombre', 'docente');
+            })
+            ->exists();
     }
 
-    // Relación con progresos de tema
-    public function progresosTema()
+    // VERIFICAR SI ES ADMIN
+    public function esAdmin()
     {
-        return $this->hasMany(ProgresoTema::class, 'id_usuario');
+        if (method_exists($this, 'roles')) {
+            return $this->roles()->where('Nombre', 'admin')->exists();
+        }
+        
+        return DB::table('rol_usuario')
+            ->where('Id_usuario', $this->Id_usuario)
+            ->whereIn('Id_rol', function($query) {
+                $query->select('Id_rol')
+                    ->from('roles')
+                    ->where('Nombre', 'admin');
+            })
+            ->exists();
     }
 
-    // Relación con progresos de evaluación
-    public function progresosEvaluacion()
+    // OBTENER EL ROL PRINCIPAL
+    public function rolPrincipal()
     {
-        return $this->hasMany(ProgresoEvaluacion::class, 'id_usuario');
+        return $this->roles()->first();
     }
 
-    // Relación con inscripciones
+    // Relaciones existentes
     public function inscripciones()
     {
-        return $this->hasMany(Inscripcion::class, 'id_usuario');
+        return $this->hasMany(Inscripcion::class, 'Id_usuario');
     }
 
-    // Relación con gestión de puntos
+    public function progresos()
+    {
+        return $this->hasMany(ProgresoCurso::class, 'Id_usuario');
+    }
+
     public function gestionPuntos()
     {
-        return $this->hasMany(GestionPunto::class, 'id_usuario');
+        return $this->hasOne(GestionPuntos::class, 'Id_usuario');
     }
 
-    // Relación con canjes
+    public function insignias()
+    {
+        return $this->hasMany(UsuarioInsignia::class, 'Id_usuario');
+    }
+
     public function canjes()
     {
-        return $this->hasMany(Canje::class, 'id_usuario');
-    }
-
-    // Relación con ranking
-    public function ranking()
-    {
-        return $this->hasOne(Ranking::class, 'id_usuario');
-    }
-
-    // Calcular puntos totales desde gestión_puntos
-    public function getPuntosTotalesAttribute()
-    {
-        $gestion = $this->gestionPuntos()->first();
-        return $gestion ? $gestion->Total_saldo : 0;
-    }
-
-    // Obtener recompensas canjeadas
-    public function recompensasCanjeadas()
-    {
-        return $this->belongsToMany(Recompensa::class, 'canjes', 'id_usuario', 'id_recompensa')
-                    ->withPivot('Fecha_canje', 'Estado');
+        return $this->hasMany(Canje::class, 'Id_usuario');
     }
 }

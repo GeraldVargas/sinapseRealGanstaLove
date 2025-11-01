@@ -10,23 +10,24 @@ class Inscripcion extends Model
     use HasFactory;
 
     protected $table = 'inscripciones';
-    protected $primaryKey = 'id_inscripc';
-    public $timestamps = false;
-
+    protected $primaryKey = 'Id_inscripcion';
+    
     protected $fillable = [
-        'id_usuario',
-        'id_curso',
+        'Id_usuario',
+        'Id_curso',
         'Fecha_inscripcion',
         'Estado'
     ];
 
+    public $timestamps = false;
+
     public function usuario()
     {
-        return $this->belongsTo(Usuario::class, 'id_usuario');
+        return $this->belongsTo(User::class, 'Id_usuario');
     }
 
     public function curso()
     {
-        return $this->belongsTo(Curso::class, 'id_curso');
+        return $this->belongsTo(Curso::class, 'Id_curso');
     }
 }

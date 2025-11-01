@@ -15,27 +15,55 @@ class Curso extends Model
 
     protected $fillable = [
         'Titulo',
-        'Descripc',
+        'Descripcion', 
+        'Modalidad',
         'Duracion',
         'Costo',
         'Estado'
     ];
 
-    // Relación con módulos
-    public function modulos()
-    {
-        return $this->hasMany(Modulo::class, 'id_curso');
-    }
-
     // Relación con inscripciones
     public function inscripciones()
     {
-        return $this->hasMany(Inscripcion::class, 'id_curso');
+        return $this->hasMany(Inscripcion::class, 'Id_curso');
     }
 
-    // Relación con actividades
-    public function actividades()
+    // Relación con módulos
+    public function modulos()
     {
-        return $this->hasMany(ActividadComplementaria::class, 'id_curso');
+        return $this->hasMany(Modulo::class, 'Id_curso');
     }
+
+    // CORREGIDO: Obtener estudiantes inscritos
+    public function estudiantes()
+    {
+        return $this->belongsToMany(
+            Usuario::class, 
+            'inscripciones', 
+            'Id_curso',      // Foreign key en la tabla pivote (inscripciones) que referencia a cursos
+            'Id_usuario'     // Foreign key en la tabla pivote (inscripciones) que referencia a usuarios
+        )->whereHas('roles', function($query) {
+            $query->where('Nombre', 'Estudiante');
+        });
+    }
+
+    // CORREGIDO: Obtener docentes asignados
+    public function docentes()
+    {
+        return $this->belongsToMany(
+            Usuario::class, 
+            'docente_curso', 
+            'Id_curso',      // Foreign key en la tabla pivote
+            'Id_docente'     // Foreign key en la tabla pivote
+        )->whereHas('roles', function($query) {
+            $query->where('Nombre', 'Docente');
+        });
+    }
+
+    // Contar inscripciones
+    public function getInscripcionesCountAttribute()
+    {
+        return $this->inscripciones()->count();
+    }
+    
 }

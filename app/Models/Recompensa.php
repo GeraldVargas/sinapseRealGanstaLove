@@ -1,29 +1,25 @@
 <?php
+// app/Models/Recompensa.php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Recompensa extends Model
 {
-    use HasFactory;
-
     protected $table = 'recompensas';
-    protected $primaryKey = 'id_recompensa';
-    public $timestamps = false;
-
+    protected $primaryKey = 'Id_recompe';
+    
     protected $fillable = [
-        'nombre',
-        'descripcion',
-        'costo_puntos',
-        'tipo', // 'beca', 'descuento', 'bono', 'material'
-        'estado'
+        'Descripc',
+        'Costo_puntos',
+        'Tipo'
     ];
 
-    public function usuarios()
+    public $timestamps = false;
+
+    public function canjes()
     {
-        return $this->belongsToMany(Usuario::class, 'canjes', 'id_recompensa', 'id_usuario')
-                    ->withPivot('fecha_canje', 'estado');
+        return $this->hasMany(Canje::class, 'Id_recompensa');
     }
 }

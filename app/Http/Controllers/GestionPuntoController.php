@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\GestionPunto;
+use App\Models\GestionPuntos;
 class GestionPuntoController extends Controller
 {
     /**
@@ -12,7 +12,7 @@ class GestionPuntoController extends Controller
      */
     public function index()
     {
-        $puntos = GestionPunto::all();
+        $puntos = GestionPuntos::all();
         return view('gestion_puntos.index',['puntos' => $puntos]);
     }
 

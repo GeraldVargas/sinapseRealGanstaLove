@@ -1,28 +1,47 @@
 <?php
+// app/Models/Evaluacion.php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Evaluacion extends Model
 {
-    use HasFactory;
-
     protected $table = 'evaluaciones';
-    protected $primaryKey = 'id_evaluacion';
-    public $timestamps = false;
-
+    protected $primaryKey = 'Id_evaluacion';
+    
     protected $fillable = [
-        'id_tema',
+        'Id_modulo', // CORREGIDO: según tu estructura real
         'Tipo',
-        'Puntaje_maximo',
+        'Puntaje_maximo', 
         'Fecha_inicio',
-        'fecha_fin'
+        'Fecha_fin'
     ];
 
-    public function tema()
+    public $timestamps = false;
+
+    // RELACIÓN DIRECTA CON MÓDULO
+    public function modulo()
     {
-        return $this->belongsTo(Tema::class, 'id_tema');
+        return $this->belongsTo(Modulo::class, 'Id_modulo');
+    }
+
+    // RELACIÓN CON CURSO a través del módulo
+    public function curso()
+    {
+        return $this->hasOneThrough(
+            Curso::class,
+            Modulo::class,
+            'Id_modulo', // Foreign key on modulos table
+            'Id_curso', // Foreign key on cursos table
+            'Id_modulo', // Local key on evaluaciones table
+            'Id_curso' // Local key on modulos table
+        );
+    }
+
+    // RELACIÓN CON PROGRESOS
+    public function progresos()
+    {
+        return $this->hasMany(ProgresoEvaluacion::class, 'Id_evaluacion');
     }
 }

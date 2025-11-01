@@ -10,11 +10,17 @@ class Rol extends Model
     use HasFactory;
 
     protected $table = 'roles';
-    protected $primaryKey = 'Id_rol';
-    public $timestamps = false;
-
+    protected $primaryKey = 'id_rol';
+    
     protected $fillable = [
         'Nombre',
         'Descripcion'
     ];
+
+    public $timestamps = false;
+
+    public function usuarios()
+    {
+        return $this->belongsToMany(Usuario::class, 'rol_usuario', 'id_rol', 'id_usuario');
+    }
 }
