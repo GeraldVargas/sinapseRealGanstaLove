@@ -112,8 +112,9 @@
             <a class="nav-link" href="/ranking">
                 <i class="fas fa-trophy me-1"></i>Ranking
             </a>
-            <a class="nav-link" href="/canjes">
-                <i class="fas fa-gift me-1"></i>Recompensas
+            <!-- CAMBIADO: Recompensas por Canjear Recompensas -->
+            <a class="nav-link" href="{{ route('estudiante.recompensas') }}">
+                <i class="fas fa-gift me-1"></i>Canjear Recompensas
             </a>
             <a class="nav-link position-relative" href="{{ route('estudiante.explorar_cursos') }}">
                 <i class="fas fa-search me-1"></i>Explorar Cursos
@@ -133,7 +134,8 @@
                 </a>
                 <ul class="dropdown-menu">
                     <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Mi Perfil</a></li>
-                    <li><a class="dropdown-item" href="/canjes"><i class="fas fa-gift me-2"></i>Mis Recompensas</a></li>
+                    <!-- CAMBIADO: Recompensas por Canjear Recompensas -->
+                    <li><a class="dropdown-item" href="{{ route('estudiante.recompensas') }}"><i class="fas fa-gift me-2"></i>Canjear Recompensas</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <form action="/logout" method="POST">
@@ -418,7 +420,8 @@
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <a href="/canjes" class="btn btn-warning btn-sm">
+                        <!-- CAMBIADO: Enlace a Canjear Recompensas -->
+                        <a href="{{ route('estudiante.recompensas') }}" class="btn btn-warning btn-sm">
                             <i class="fas fa-gift me-2"></i>Canjear Recompensas
                         </a>
                     </div>
@@ -481,9 +484,10 @@
                             <span>Ver Ranking</span>
                         </a>
                         
-                        <a href="/canjes" class="list-group-item list-group-item-action quick-action-btn">
-                            <i class="fas fa-gift text-secondary me-2"></i>
-                            <span>Recompensas</span>
+                        <!-- CAMBIADO: Recompensas por Canjear Recompensas -->
+                        <a href="{{ route('estudiante.recompensas') }}" class="list-group-item list-group-item-action quick-action-btn">
+                            <i class="fas fa-gift text-warning me-2"></i>
+                            <span>Canjear Recompensas</span>
                         </a>
                     </div>
                 </div>

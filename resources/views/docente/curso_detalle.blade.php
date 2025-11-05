@@ -81,7 +81,7 @@
                 <div class="alert alert-warning alert-dismissible fade show mt-3 entregas-badge" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     Tienes <strong>{{ $entregasPendientesCount }}</strong> entrega(s) pendiente(s) de calificación en este curso.
-                    <a href="#entregas-pendientes" class="alert-link fw-bold">Revisar ahora</a>
+                    <a href="#entregas" class="alert-link fw-bold">Revisar ahora</a>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
                 @endif
@@ -119,199 +119,198 @@
                 </ul>
 
                 <div class="tab-content mt-3" id="cursoTabsContent">
-<!-- Tab Estudiantes CORREGIDO -->
-<div class="tab-pane fade show active" id="estudiantes" role="tabpanel">
-    <div class="card">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Gestión de Estudiantes</h5>
-            <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalAgregarEstudiante">
-                <i class="fas fa-user-plus me-1"></i>Agregar Estudiante
-            </button>
-        </div>
-        <div class="card-body">
-            @if($estudiantes->count() > 0)
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Estudiante</th>
-                            <th>Email</th>
-                            <th>Fecha Inscripción</th>
-                            <th>Progreso</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($estudiantes as $estudiante)
-                        @php
-                            $porcentaje = $estudiante->progreso ?? 0;
-                            $modulos_completados = $estudiante->Modulos_completados ?? 0;
-                        @endphp
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="student-avatar me-3">
-                                        {{ substr($estudiante->Nombre, 0, 1) }}{{ substr($estudiante->Apellido, 0, 1) }}
-                                    </div>
-                                    <div>
-                                        <strong>{{ $estudiante->Nombre }} {{ $estudiante->Apellido }}</strong>
-                                        <br>
-                                        <small class="text-muted">ID: {{ $estudiante->Id_usuario }}</small>
-                                    </div>
+                    <!-- Tab Estudiantes CORREGIDO -->
+                    <div class="tab-pane fade show active" id="estudiantes" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Gestión de Estudiantes</h5>
+                                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalAgregarEstudiante">
+                                    <i class="fas fa-user-plus me-1"></i>Agregar Estudiante
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                @if($estudiantes->count() > 0)
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Estudiante</th>
+                                                <th>Email</th>
+                                                <th>Fecha Inscripción</th>
+                                                <th>Progreso</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($estudiantes as $estudiante)
+                                            @php
+                                                $porcentaje = $estudiante->progreso ?? 0;
+                                                $modulos_completados = $estudiante->Modulos_completados ?? 0;
+                                            @endphp
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="student-avatar me-3">
+                                                            {{ substr($estudiante->Nombre, 0, 1) }}{{ substr($estudiante->Apellido, 0, 1) }}
+                                                        </div>
+                                                        <div>
+                                                            <strong>{{ $estudiante->Nombre }} {{ $estudiante->Apellido }}</strong>
+                                                            <br>
+                                                            <small class="text-muted">ID: {{ $estudiante->Id_usuario }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{{ $estudiante->Email }}</td>
+                                                <td>{{ $estudiante->Fecha_inscripcion ?? 'N/A' }}</td>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="me-3" style="width: 80px;">
+                                                            <div class="progress progress-thin">
+                                                                <div class="progress-bar bg-success" style="width: {{ $porcentaje }}%"></div>
+                                                            </div>
+                                                            <small class="text-muted">{{ $porcentaje }}%</small>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted">
+                                                                {{ $modulos_completados }}/{{ $modulos->count() }} módulos
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    @if($porcentaje >= 80)
+                                                        <span class="badge bg-success">Avanzado</span>
+                                                    @elseif($porcentaje >= 50)
+                                                        <span class="badge bg-warning">Intermedio</span>
+                                                    @else
+                                                        <span class="badge bg-info">Principiante</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <a href="{{ route('docente.estudiante.detalle', ['idCurso' => $curso->Id_curso, 'idEstudiante' => $estudiante->Id_usuario]) }}" 
+                                                           class="btn btn-outline-primary" title="Ver detalle">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        <form action="{{ route('docente.estudiante.eliminar', ['idCurso' => $curso->Id_curso, 'idEstudiante' => $estudiante->Id_usuario]) }}" 
+                                                              method="POST" class="d-inline">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-outline-danger" 
+                                                                    title="Eliminar del curso"
+                                                                    onclick="return confirm('¿Estás seguro de eliminar a {{ $estudiante->Nombre }} de este curso?')">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
-                            </td>
-                            <td>{{ $estudiante->Email }}</td>
-                            <td>{{ $estudiante->Fecha_inscripcion ?? 'N/A' }}</td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3" style="width: 80px;">
-                                        <div class="progress progress-thin">
-                                            <div class="progress-bar bg-success" style="width: {{ $porcentaje }}%"></div>
-                                        </div>
-                                        <small class="text-muted">{{ $porcentaje }}%</small>
-                                    </div>
-                                    <div>
-                                        <small class="text-muted">
-                                            {{ $modulos_completados }}/{{ $modulos->count() }} módulos
-                                        </small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                @if($porcentaje >= 80)
-                                    <span class="badge bg-success">Avanzado</span>
-                                @elseif($porcentaje >= 50)
-                                    <span class="badge bg-warning">Intermedio</span>
                                 @else
-                                    <span class="badge bg-info">Principiante</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ route('docente.estudiante.detalle', ['idCurso' => $curso->Id_curso, 'idEstudiante' => $estudiante->Id_usuario]) }}" 
-                                       class="btn btn-outline-primary" title="Ver detalle">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <!-- ELIMINADO: Botón Editar Progreso -->
-                                    <form action="{{ route('docente.estudiante.eliminar', ['idCurso' => $curso->Id_curso, 'idEstudiante' => $estudiante->Id_usuario]) }}" 
-                                          method="POST" class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger" 
-                                                title="Eliminar del curso"
-                                                onclick="return confirm('¿Estás seguro de eliminar a {{ $estudiante->Nombre }} de este curso?')">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
+                                <div class="text-center py-4">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No hay estudiantes inscritos en este curso.</p>
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarEstudiante">
+                                        <i class="fas fa-user-plus me-2"></i>Agregar Primer Estudiante
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            @else
-            <div class="text-center py-4">
-                <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                <p class="text-muted">No hay estudiantes inscritos en este curso.</p>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarEstudiante">
-                    <i class="fas fa-user-plus me-2"></i>Agregar Primer Estudiante
-                </button>
-            </div>
-            @endif
-        </div>
-    </div>
-</div>
-                    <!-- Tab Módulos - VERSIÓN MEJORADA -->
-<div class="tab-pane fade" id="modulos" role="tabpanel">
-    <div class="card">
-        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-book me-2"></i>Módulos del Curso</h5>
-            <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrearModulo">
-                <i class="fas fa-plus me-1"></i>Crear Módulo
-            </button>
-        </div>
-        <div class="card-body">
-            @if($modulos->count() > 0)
-            <div class="list-group">
-                @foreach($modulos as $modulo)
-                <div class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">{{ $modulo->Nombre }}</h6>
-                            <p class="mb-1 text-muted small">{{ $modulo->Descripcion }}</p>
-                         <div class="d-flex gap-2 mt-2">
-    <small class="text-muted">
-        <i class="fas fa-file-alt me-1"></i>{{ $modulo->total_temas }} temas
-    </small>
-    <small class="text-muted">
-        <i class="fas fa-tasks me-1"></i>{{ $modulo->total_evaluaciones }} evaluaciones
-    </small>
-</div>
-                        </div>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" data-bs-toggle="modal" 
-                                    data-bs-target="#modalCrearTema" 
-                                    data-modulo-id="{{ $modulo->Id_modulo }}"
-                                    data-modulo-nombre="{{ $modulo->Nombre }}">
-                                <i class="fas fa-plus"></i> Tema
-                            </button>
-                            <button class="btn btn-outline-warning">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-outline-danger btn-eliminar-modulo" 
-                                    data-modulo-id="{{ $modulo->Id_modulo }}"
-                                    data-modulo-nombre="{{ $modulo->Nombre }}">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                                @endif
+                            </div>
                         </div>
                     </div>
-                    
-                    <!-- Lista de Temas del Módulo -->
-                    <!-- Lista de Temas del Módulo -->
-@if($modulo->total_temas > 0)
-<div class="mt-3 ps-4 border-start border-2 border-success">
-    <h6 class="text-success mb-2">
-        <i class="fas fa-list me-1"></i>Temas:
-    </h6>
-    @foreach($modulo->temas as $tema)
-    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-        <div>
-            <span class="fw-bold">Tema {{ $tema->Orden ?? 'N/A' }}:</span> {{ $tema->Nombre }}
-            @if($tema->Descripcion)
-            <br><small class="text-muted">{{ $tema->Descripcion }}</small>
-            @endif
-        </div>
-        <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-outline-danger btn-sm btn-eliminar-tema"
-                    data-tema-id="{{ $tema->Id_tema }}"
-                    data-tema-nombre="{{ $tema->Nombre }}">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    </div>
-    @endforeach
-</div>
-@endif
-                </div>
-                @endforeach
-            </div>
-            @else
-            <div class="text-center py-4">
-                <i class="fas fa-book fa-3x text-muted mb-3"></i>
-                <p class="text-muted">No hay módulos creados para este curso.</p>
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCrearModulo">
-                    <i class="fas fa-plus me-2"></i>Crear Primer Módulo
-                </button>
-            </div>
-            @endif
-        </div>
-    </div>
-</div>
+
+                    <!-- Tab Módulos - VERSIÓN MEJORADA -->
+                    <div class="tab-pane fade" id="modulos" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-book me-2"></i>Módulos del Curso</h5>
+                                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrearModulo">
+                                    <i class="fas fa-plus me-1"></i>Crear Módulo
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                @if($modulos->count() > 0)
+                                <div class="list-group">
+                                    @foreach($modulos as $modulo)
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">{{ $modulo->Nombre }}</h6>
+                                                <p class="mb-1 text-muted small">{{ $modulo->Descripcion }}</p>
+                                             <div class="d-flex gap-2 mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-file-alt me-1"></i>{{ $modulo->total_temas }} temas
+                                    </small>
+                                    <small class="text-muted">
+                                        <i class="fas fa-tasks me-1"></i>{{ $modulo->total_evaluaciones }} evaluaciones
+                                    </small>
+                                </div>
+                                            </div>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" data-bs-toggle="modal" 
+                                                        data-bs-target="#modalCrearTema" 
+                                                        data-modulo-id="{{ $modulo->Id_modulo }}"
+                                                        data-modulo-nombre="{{ $modulo->Nombre }}">
+                                                    <i class="fas fa-plus"></i> Tema
+                                                </button>
+                                                <button class="btn btn-outline-warning">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-eliminar-modulo" 
+                                                        data-modulo-id="{{ $modulo->Id_modulo }}"
+                                                        data-modulo-nombre="{{ $modulo->Nombre }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Lista de Temas del Módulo -->
+                                        @if($modulo->total_temas > 0)
+                                        <div class="mt-3 ps-4 border-start border-2 border-success">
+                                            <h6 class="text-success mb-2">
+                                                <i class="fas fa-list me-1"></i>Temas:
+                                            </h6>
+                                            @foreach($modulo->temas as $tema)
+                                            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                                <div>
+                                                    <span class="fw-bold">Tema {{ $tema->Orden ?? 'N/A' }}:</span> {{ $tema->Nombre }}
+                                                    @if($tema->Descripcion)
+                                                    <br><small class="text-muted">{{ $tema->Descripcion }}</small>
+                                                    @endif
+                                                </div>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger btn-sm btn-eliminar-tema"
+                                                            data-tema-id="{{ $tema->Id_tema }}"
+                                                            data-tema-nombre="{{ $tema->Nombre }}">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            @endforeach
+                                        </div>
+                                        @endif
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @else
+                                <div class="text-center py-4">
+                                    <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No hay módulos creados para este curso.</p>
+                                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCrearModulo">
+                                        <i class="fas fa-plus me-2"></i>Crear Primer Módulo
+                                    </button>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Tab Evaluaciones CORREGIDO -->
                     <div class="tab-pane fade" id="evaluaciones" role="tabpanel">
@@ -342,27 +341,27 @@
                                         </thead>
                                         <tbody>
                                             @foreach($evaluaciones as $evaluacion)
-<tr>
-    <td>
-        <span class="badge bg-info">{{ $evaluacion->Tipo }}</span>
-    </td>
-    <td>{{ $evaluacion->modulo_nombre ?? 'N/A' }}</td>
-    <td>{{ $evaluacion->Puntaje_maximo }}</td>
-    <td>{{ $evaluacion->Fecha_inicio }}</td>
-    <td>{{ $evaluacion->Fecha_fin }}</td>
-    <td>
-        <button class="btn btn-sm btn-outline-primary">
-            <i class="fas fa-eye"></i>
-        </button>
-        <button class="btn btn-sm btn-outline-warning">
-            <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-outline-danger">
-            <i class="fas fa-trash"></i>
-        </button>
-    </td>
-</tr>
-@endforeach
+                                            <tr>
+                                                <td>
+                                                    <span class="badge bg-info">{{ $evaluacion->Tipo }}</span>
+                                                </td>
+                                                <td>{{ $evaluacion->modulo_nombre ?? 'N/A' }}</td>
+                                                <td>{{ $evaluacion->Puntaje_maximo }}</td>
+                                                <td>{{ $evaluacion->Fecha_inicio }}</td>
+                                                <td>{{ $evaluacion->Fecha_fin }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-warning">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            @endforeach
                                         </tbody>
                                     </table>
                                 </div>
@@ -376,7 +375,7 @@
                         </div>
                     </div>
 
-                    <!-- 🆕 NUEVA PESTAÑA: ENTREGAS PENDIENTES -->
+                    <!-- 🆕 PESTAÑA: ENTREGAS PENDIENTES - CORREGIDA -->
                     <div class="tab-pane fade" id="entregas" role="tabpanel">
                         <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center 
@@ -602,57 +601,56 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Modal Crear Módulo -->
-<!-- Modal Crear Módulo - VERSIÓN CORREGIDA -->
-<div class="modal fade" id="modalCrearModulo" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Crear Nuevo Módulo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- Modal Crear Módulo - VERSIÓN CORREGIDA -->
+    <div class="modal fade" id="modalCrearModulo" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Crear Nuevo Módulo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ route('docente.modulo.crear', $curso->Id_curso) }}" method="POST">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre del Módulo *</label>
+                            <input type="text" class="form-control" name="nombre" required 
+                                   placeholder="Ej: Introducción a la Programación"
+                                   value="{{ old('nombre') }}">
+                            @error('nombre')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Descripción *</label>
+                            <textarea class="form-control" name="descripcion" rows="3" required 
+                                      placeholder="Describe los objetivos y contenido de este módulo...">{{ old('descripcion') }}</textarea>
+                            @error('descripcion')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus me-2"></i>Crear Módulo
+                        </button>
+                    </div>
+                </form>
             </div>
-            <form action="{{ route('docente.modulo.crear', $curso->Id_curso) }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Nombre del Módulo *</label>
-                        <input type="text" class="form-control" name="nombre" required 
-                               placeholder="Ej: Introducción a la Programación"
-                               value="{{ old('nombre') }}">
-                        @error('nombre')
-                            <small class="text-danger">{{ $message }}</small>
-                        @enderror
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Descripción *</label>
-                        <textarea class="form-control" name="descripcion" rows="3" required 
-                                  placeholder="Describe los objetivos y contenido de este módulo...">{{ old('descripcion') }}</textarea>
-                        @error('descripcion')
-                            <small class="text-danger">{{ $message }}</small>
-                        @enderror
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-plus me-2"></i>Crear Módulo
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
 
-<!-- Modal Crear Tema - VERSIÓN CORREGIDA -->
+    <!-- REEMPLAZAR el modal "Crear Tema" existente con este: -->
+<!-- Modal Crear Tema - VERSIÓN MEJORADA CON CONTENIDO COMPLETO -->
 <div class="modal fade" id="modalCrearTema" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">Crear Nuevo Tema</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="formCrearTema" method="POST">
+            <form id="formCrearTema" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
                     <input type="hidden" name="id_modulo" id="inputIdModulo">
@@ -660,36 +658,61 @@
                         <label class="form-label">Módulo</label>
                         <input type="text" class="form-control" id="inputNombreModulo" readonly>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Nombre del Tema *</label>
-                        <input type="text" class="form-control" name="nombre" required 
-                               placeholder="Ej: Variables y Tipos de Datos"
-                               value="{{ old('nombre') }}">
-                        @error('nombre')
-                            <small class="text-danger">{{ $message }}</small>
-                        @enderror
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Nombre del Tema *</label>
+                                <input type="text" class="form-control" name="nombre" required 
+                                       placeholder="Ej: Variables y Tipos de Datos">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Orden *</label>
+                                <input type="number" class="form-control" name="orden" required min="1" 
+                                       placeholder="1" value="1">
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Descripción *</label>
                         <textarea class="form-control" name="descripcion" rows="2" required 
-                                  placeholder="Breve descripción del tema...">{{ old('descripcion') }}</textarea>
-                        @error('descripcion')
-                            <small class="text-danger">{{ $message }}</small>
-                        @enderror
+                                  placeholder="Breve descripción del tema..."></textarea>
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Contenido (Opcional)</label>
-                        <textarea class="form-control" name="contenido" rows="3" 
-                                  placeholder="Contenido detallado, enlaces, recursos...">{{ old('contenido') }}</textarea>
+                        <label class="form-label">Tipo de Contenido</label>
+                        <select class="form-select" id="tipo_contenido" name="tipo_contenido">
+                            <option value="texto">Texto/HTML</option>
+                            <option value="video">Video</option>
+                            <option value="pdf">PDF</option>
+                            <option value="presentacion">Presentación</option>
+                        </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Orden *</label>
-                        <input type="number" class="form-control" name="orden" required min="1" 
-                               placeholder="Número de orden en el módulo"
-                               value="{{ old('orden', 1) }}">
-                        @error('orden')
-                            <small class="text-danger">{{ $message }}</small>
-                        @enderror
+                    
+                    <!-- Contenido HTML (visible por defecto) -->
+                    <div class="mb-3" id="contenido_html_group">
+                        <label class="form-label">Contenido HTML *</label>
+                        <textarea class="form-control" name="contenido_html" rows="8" 
+                                  placeholder="Escribe el contenido del tema. Puedes usar HTML para formato..."></textarea>
+                        <small class="text-muted">Puedes usar etiquetas HTML como &lt;strong&gt;, &lt;ul&gt;, &lt;li&gt;, etc.</small>
+                    </div>
+                    
+                    <!-- URL de Video (oculto por defecto) -->
+                    <div class="mb-3" id="url_video_group" style="display: none;">
+                        <label class="form-label">URL del Video *</label>
+                        <input type="url" class="form-control" name="url_video" 
+                               placeholder="https://www.youtube.com/watch?v=... o https://vimeo.com/...">
+                        <small class="text-muted">Soporta YouTube, Vimeo y otros servicios de video.</small>
+                    </div>
+                    
+                    <!-- Archivo Adjunto (oculto por defecto) -->
+                    <div class="mb-3" id="archivo_group" style="display: none;">
+                        <label class="form-label">Archivo Adjunto *</label>
+                        <input type="file" class="form-control" name="archivo_adjunto">
+                        <small class="text-muted">Formatos permitidos: PDF, PPT, DOC, imágenes. Máx: 10MB</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -702,6 +725,8 @@
         </div>
     </div>
 </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Configurar modal de crear tema
@@ -714,49 +739,104 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('inputIdModulo').value = moduloId;
         document.getElementById('inputNombreModulo').value = moduloNombre;
         
-        // Configurar la acción del formulario CORRECTAMENTE
+        // Configurar la acción del formulario
         const form = document.getElementById('formCrearTema');
         form.action = `/docente/modulo/${moduloId}/tema/crear`;
+        
+        // Resetear campos al abrir modal
+        form.reset();
+        document.getElementById('tipo_contenido').value = 'texto';
+        mostrarCamposPorTipo('texto');
         
         console.log('Form action set to:', form.action);
     });
 
-    // Debug: Verificar que los modales se configuran correctamente
-    console.log('JavaScript cargado correctamente');
-    
-    // Verificar que los botones de módulo existen
-    const botonesModulo = document.querySelectorAll('[data-bs-target="#modalCrearTema"]');
-    console.log('Botones de crear tema encontrados:', botonesModulo.length);
-});
-</script>
-  <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Configurar modal de crear tema
-    const modalCrearTema = document.getElementById('modalCrearTema');
-    modalCrearTema.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        const moduloId = button.getAttribute('data-modulo-id');
-        const moduloNombre = button.getAttribute('data-modulo-nombre');
-        
-        document.getElementById('inputIdModulo').value = moduloId;
-        document.getElementById('inputNombreModulo').value = moduloNombre;
-        
-        // Configurar la acción del formulario CORRECTAMENTE
-        const form = document.getElementById('formCrearTema');
-        form.action = `/docente/modulo/${moduloId}/tema/crear`;
-        
-        console.log('Form action set to:', form.action);
+    // Manejar cambio de tipo de contenido
+    document.getElementById('tipo_contenido').addEventListener('change', function() {
+        mostrarCamposPorTipo(this.value);
     });
 
-    // Debug: Verificar que los modales se configuran correctamente
-    console.log('JavaScript cargado correctamente');
-    
-    // Verificar que los botones de módulo existen
-    const botonesModulo = document.querySelectorAll('[data-bs-target="#modalCrearTema"]');
-    console.log('Botones de crear tema encontrados:', botonesModulo.length);
-});
-</script>
+    function mostrarCamposPorTipo(tipo) {
+        // Ocultar todos los grupos primero
+        document.getElementById('contenido_html_group').style.display = 'none';
+        document.getElementById('url_video_group').style.display = 'none';
+        document.getElementById('archivo_group').style.display = 'none';
+        
+        // Mostrar solo el grupo correspondiente
+        switch(tipo) {
+            case 'texto':
+                document.getElementById('contenido_html_group').style.display = 'block';
+                break;
+            case 'video':
+                document.getElementById('url_video_group').style.display = 'block';
+                break;
+            case 'pdf':
+            case 'presentacion':
+                document.getElementById('archivo_group').style.display = 'block';
+                break;
+        }
+    }
 
+    // Eliminar módulo
+    document.querySelectorAll('.btn-eliminar-modulo').forEach(button => {
+        button.addEventListener('click', function() {
+            const moduloId = this.getAttribute('data-modulo-id');
+            const moduloNombre = this.getAttribute('data-modulo-nombre');
+            
+            if (confirm(`¿Estás seguro de eliminar el módulo "${moduloNombre}"? Esta acción no se puede deshacer.`)) {
+                fetch(`/docente/modulo/${moduloId}/eliminar`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Error al eliminar el módulo');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al eliminar el módulo');
+                });
+            }
+        });
+    });
+
+    // Eliminar tema
+    document.querySelectorAll('.btn-eliminar-tema').forEach(button => {
+        button.addEventListener('click', function() {
+            const temaId = this.getAttribute('data-tema-id');
+            const temaNombre = this.getAttribute('data-tema-nombre');
+            
+            if (confirm(`¿Estás seguro de eliminar el tema "${temaNombre}"?`)) {
+                fetch(`/docente/tema/${temaId}/eliminar`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Error al eliminar el tema');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al eliminar el tema');
+                });
+            }
+        });
+    });
+});
 </script>
 </body>
 </html>

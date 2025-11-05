@@ -238,13 +238,16 @@ public function agregarEstudiante($idCurso, Request $request)
 }
     
   //aqui
+
+// En DocenteController - método eliminarEstudiante CORREGIDO
 public function eliminarEstudiante($idCurso, $idEstudiante)
 {
     DB::beginTransaction();
     
     try {
         // Buscar la inscripción
-        $inscripcion = Inscripcion::where('Id_curso', $idCurso)
+        $inscripcion = DB::table('inscripciones')
+            ->where('Id_curso', $idCurso)
             ->where('Id_usuario', $idEstudiante)
             ->first();
             
@@ -254,17 +257,42 @@ public function eliminarEstudiante($idCurso, $idEstudiante)
         
         $idInscripcion = $inscripcion->Id_inscripcion;
         
-        // 1. Eliminar pagos asociados
-        Pago::where('Id_inscripcion', $idInscripcion)->delete();
-        
-        // 2. Eliminar progreso_curso (aquí sí existe Id_usuario)
-        DB::table('progreso_curso')
+        Log::info("🔧 Eliminando estudiante - Curso: $idCurso, Estudiante: $idEstudiante, Inscripción: $idInscripcion");
+
+        // 1. ACTUALIZAR CUPOS DEL CURSO (incrementar)
+        $curso = DB::table('cursos')->where('Id_curso', $idCurso)->first();
+        if ($curso && isset($curso->Cupos_disponibles)) {
+            $nuevosCupos = $curso->Cupos_disponibles + 1;
+            $estadoCupos = $nuevosCupos > 0 ? 'disponible' : 'completo';
+            
+            DB::table('cursos')
+                ->where('Id_curso', $idCurso)
+                ->update([
+                    'Cupos_disponibles' => $nuevosCupos,
+                    'Estado_cupos' => $estadoCupos
+                ]);
+            
+            Log::info("✅ Cupos actualizados: +1 = $nuevosCupos disponibles");
+        }
+
+        // 2. ELIMINAR O ACTUALIZAR gestion_puntos (CORREGIDO)
+        // En lugar de eliminar, actualizamos el Id_inscripcion a NULL
+        DB::table('gestion_puntos')
+            ->where('Id_inscripcion', $idInscripcion)
+            ->update(['Id_inscripcion' => null]);
+
+        Log::info("✅ gestion_puntos actualizado (Id_inscripcion = NULL)");
+
+        // 3. Eliminar progreso_curso
+        $progresoEliminado = DB::table('progreso_curso')
             ->where('Id_curso', $idCurso)
             ->where('Id_usuario', $idEstudiante)
             ->delete();
         
-        // 3. Eliminar entregas del estudiante en este curso
-        DB::table('entregas')
+        Log::info("✅ Progreso_curso eliminado: $progresoEliminado registros");
+
+        // 4. Eliminar entregas del estudiante en este curso
+        $entregasEliminadas = DB::table('entregas')
             ->where('Id_usuario', $idEstudiante)
             ->whereIn('Id_evaluacion', function($query) use ($idCurso) {
                 $query->select('e.Id_evaluacion')
@@ -273,16 +301,49 @@ public function eliminarEstudiante($idCurso, $idEstudiante)
                       ->where('m.Id_curso', $idCurso);
             })->delete();
         
-        // 4. Finalmente eliminar la inscripción
-        $inscripcion->delete();
+        Log::info("✅ Entregas eliminadas: $entregasEliminadas registros");
+
+        // 5. Eliminar progreso_evaluacion del estudiante en este curso
+        $progresoEvaluacionEliminado = DB::table('progreso_evaluacion')
+            ->where('Id_usuario', $idEstudiante)
+            ->whereIn('Id_evaluacion', function($query) use ($idCurso) {
+                $query->select('e.Id_evaluacion')
+                      ->from('evaluaciones as e')
+                      ->join('modulos as m', 'e.Id_modulo', '=', 'm.Id_modulo')
+                      ->where('m.Id_curso', $idCurso);
+            })->delete();
         
+        Log::info("✅ Progreso_evaluacion eliminado: $progresoEvaluacionEliminado registros");
+
+        // 6. Eliminar progreso_tema del estudiante en este curso
+        $progresoTemaEliminado = DB::table('progreso_tema')
+            ->where('Id_usuario', $idEstudiante)
+            ->whereIn('Id_tema', function($query) use ($idCurso) {
+                $query->select('t.Id_tema')
+                      ->from('temas as t')
+                      ->join('modulos as m', 't.Id_modulo', '=', 'm.Id_modulo')
+                      ->where('m.Id_curso', $idCurso);
+            })->delete();
+        
+        Log::info("✅ Progreso_tema eliminado: $progresoTemaEliminado registros");
+
+        // 7. Finalmente eliminar la inscripción
+        $inscripcionEliminada = DB::table('inscripciones')
+            ->where('Id_inscripcion', $idInscripcion)
+            ->delete();
+        
+        Log::info("✅ Inscripción eliminada: $inscripcionEliminada registros");
+
         DB::commit();
         
+        Log::info("🎉 Estudiante eliminado exitosamente del curso");
+
         return back()->with('success', 'Estudiante eliminado del curso exitosamente.');
         
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error('Error al eliminar estudiante: ' . $e->getMessage());
+        Log::error('❌ ERROR al eliminar estudiante: ' . $e->getMessage());
+        Log::error('Trace: ' . $e->getTraceAsString());
         return back()->with('error', 'Error al eliminar estudiante: ' . $e->getMessage());
     }
 }
@@ -444,6 +505,8 @@ public function eliminarModulo($idModulo)
 /**
  * CREAR NUEVO TEMA - VERSIÓN CORREGIDA (sin timestamps)
  */
+// En DocenteController - método crearTema ACTUALIZADO
+// En DocenteController - método crearTema ACTUALIZADO
 public function crearTema(Request $request, $idModulo)
 {
     if (!session('usuario')) {
@@ -454,12 +517,14 @@ public function crearTema(Request $request, $idModulo)
         $request->validate([
             'nombre' => 'required|string|max:255',
             'descripcion' => 'required|string',
-            'contenido' => 'nullable|string',
+            'contenido_html' => 'nullable|string',
+            'tipo_contenido' => 'nullable|in:texto,video,pdf,presentacion',
+            'url_video' => 'nullable|url|max:500',
+            'archivo_adjunto' => 'nullable|file|max:10240', // 10MB máximo
             'orden' => 'required|integer|min:1'
         ]);
 
         Log::info("Intentando crear tema para módulo: $idModulo");
-        Log::info("Datos recibidos:", $request->all());
 
         // Verificar que el módulo existe
         $modulo = DB::table('modulos')->where('Id_modulo', $idModulo)->first();
@@ -468,17 +533,36 @@ public function crearTema(Request $request, $idModulo)
             return back()->with('error', 'Módulo no encontrado.');
         }
 
-        // Crear el tema usando consulta directa - SOLO COLUMNAS EXISTENTES
+        // Procesar archivo adjunto si se subió
+        $nombreArchivo = null;
+        if ($request->hasFile('archivo_adjunto')) {
+            $archivo = $request->file('archivo_adjunto');
+            $nombreArchivo = time() . '_' . $archivo->getClientOriginalName();
+            
+            // Crear directorio si no existe
+            $directorio = public_path('storage/temas');
+            if (!file_exists($directorio)) {
+                mkdir($directorio, 0755, true);
+            }
+            
+            $archivo->move($directorio, $nombreArchivo);
+            Log::info("Archivo subido: $nombreArchivo");
+        }
+
+        // Crear el tema con todos los campos
         DB::table('temas')->insert([
             'Id_modulo' => $idModulo,
             'Nombre' => $request->nombre,
             'Descripcion' => $request->descripcion,
-            'Contenido' => $request->contenido,
+            'Contenido' => $request->contenido_html, // Para compatibilidad
+            'Contenido_html' => $request->contenido_html,
+            'Tipo_contenido' => $request->tipo_contenido ?? 'texto',
+            'Url_video' => $request->url_video,
+            'Archivo_adjunto' => $nombreArchivo,
             'Orden' => $request->orden
-            // NO incluir created_at y updated_at si no existen
         ]);
 
-        Log::info("Tema creado exitosamente para módulo: $idModulo");
+        Log::info("Tema creado exitosamente para módulo: $idModulo - Nombre: {$request->nombre}");
 
         return back()->with('success', 'Tema creado exitosamente.');
 
@@ -723,6 +807,9 @@ public function entregasPendientes()
 /**
  * CALIFICAR ENTREGA Y ASIGNAR PUNTOS
  */
+/**
+ * CALIFICAR ENTREGA Y ASIGNAR PUNTOS - MEJORADO
+ */
 public function calificarEntrega(Request $request, $idEntrega)
 {
     if (!session('usuario')) {
@@ -732,27 +819,32 @@ public function calificarEntrega(Request $request, $idEntrega)
     try {
         $request->validate([
             'puntos' => 'required|integer|min:0',
-            'comentario' => 'nullable|string'
+            'comentario' => 'nullable|string|max:500'
         ]);
 
         // Obtener información de la entrega
-        $entrega = DB::table('entregas')
-            ->where('Id_entrega', $idEntrega)
-            ->first();
+        $entrega = DB::selectOne("
+            SELECT 
+                e.*,
+                ev.Puntaje_maximo,
+                ev.Id_evaluacion,
+                u.Id_usuario as estudiante_id
+            FROM entregas e
+            INNER JOIN evaluaciones ev ON e.Id_evaluacion = ev.Id_evaluacion
+            INNER JOIN usuarios u ON e.Id_usuario = u.Id_usuario
+            WHERE e.Id_entrega = ?
+        ", [$idEntrega]);
 
         if (!$entrega) {
             return back()->with('error', 'Entrega no encontrada.');
         }
 
-        // Obtener evaluación para saber el máximo de puntos
-        $evaluacion = DB::table('evaluaciones')
-            ->where('Id_evaluacion', $entrega->Id_evaluacion)
-            ->first();
-
         // Validar que los puntos no excedan el máximo
-        $puntosAsignados = min($request->puntos, $evaluacion->Puntaje_maximo);
+        $puntosAsignados = min($request->puntos, $entrega->Puntaje_maximo);
 
-        // Actualizar entrega
+        DB::beginTransaction();
+
+        // 1. Actualizar entrega
         DB::table('entregas')
             ->where('Id_entrega', $idEntrega)
             ->update([
@@ -762,22 +854,42 @@ public function calificarEntrega(Request $request, $idEntrega)
                 'Fecha_calificacion' => now()
             ]);
 
-        // ASIGNAR PUNTOS AL ESTUDIANTE
-        $this->asignarPuntosEstudiante($entrega->Id_usuario, $puntosAsignados, "Evaluación calificada - Entrega ID: $idEntrega");
+        // 2. Crear o actualizar progreso_evaluacion
+        DB::table('progreso_evaluacion')->updateOrInsert(
+            [
+                'Id_evaluacion' => $entrega->Id_evaluacion,
+                'Id_usuario' => $entrega->estudiante_id
+            ],
+            [
+                'Puntaje_obtenido' => $puntosAsignados,
+                'Porcentaje' => ($puntosAsignados / $entrega->Puntaje_maximo) * 100,
+                'Aprobado' => $puntosAsignados >= ($entrega->Puntaje_maximo * 0.6), // 60% para aprobar
+                'Fecha_completado' => now()
+            ]
+        );
 
-        Log::info("✅ Entrega calificada - ID: $idEntrega, Puntos: $puntosAsignados, Estudiante: {$entrega->Id_usuario}");
+        // 3. ASIGNAR PUNTOS AL ESTUDIANTE EN gestion_puntos
+        $this->asignarPuntosEstudiante($entrega->estudiante_id, $puntosAsignados, "Evaluación calificada - Entrega ID: $idEntrega");
 
-        return redirect('/docente/entregas-pendientes')
+        DB::commit();
+
+        Log::info("✅ Entrega calificada - ID: $idEntrega, Puntos: $puntosAsignados, Estudiante: {$entrega->estudiante_id}");
+
+        return redirect()->route('docente.curso.detalle', ['idCurso' => DB::table('evaluaciones as e')
+            ->join('modulos as m', 'e.Id_modulo', '=', 'm.Id_modulo')
+            ->where('e.Id_evaluacion', $entrega->Id_evaluacion)
+            ->value('m.Id_curso')])
             ->with('success', "Trabajo calificado exitosamente. Se asignaron $puntosAsignados puntos al estudiante.");
 
     } catch (\Exception $e) {
+        DB::rollBack();
         Log::error('❌ ERROR calificando entrega: ' . $e->getMessage());
         return back()->with('error', 'Error al calificar el trabajo: ' . $e->getMessage());
     }
 }
 
 /**
- * ASIGNAR PUNTOS AL ESTUDIANTE (desde docente)
+ * ASIGNAR PUNTOS AL ESTUDIANTE - ACTUALIZADO PARA gestion_puntos
  */
 private function asignarPuntosEstudiante($idEstudiante, $puntos, $razon)
 {
@@ -822,7 +934,6 @@ private function asignarPuntosEstudiante($idEstudiante, $puntos, $razon)
         Log::error('❌ ERROR asignando puntos desde docente: ' . $e->getMessage());
     }
 }
-
 /**
  * ACTUALIZAR RANKING DEL ESTUDIANTE
  */
@@ -884,6 +995,57 @@ private function recalcularPosicionesRanking($periodo)
 
     } catch (\Exception $e) {
         Log::error('❌ ERROR recalculando posiciones de ranking: ' . $e->getMessage());
+    }
+}
+/**
+ * MOSTRAR FORMULARIO PARA CALIFICAR ENTREGA - CORREGIDO
+ */
+public function mostrarCalificarEntrega($idEntrega)
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
+
+    try {
+        Log::info("🔍 Cargando entrega para calificar - ID: $idEntrega");
+
+        // Obtener información completa de la entrega
+        $entrega = DB::selectOne("
+            SELECT 
+                e.*,
+                u.Nombre as estudiante_nombre,
+                u.Apellido as estudiante_apellido,
+                u.Email as estudiante_email,
+                ev.Tipo as evaluacion_tipo,
+                ev.Puntaje_maximo,
+                ev.Id_evaluacion,
+                m.Nombre as modulo_nombre,
+                c.Titulo as curso_titulo,
+                c.Id_curso
+            FROM entregas e
+            INNER JOIN usuarios u ON e.Id_usuario = u.Id_usuario
+            INNER JOIN evaluaciones ev ON e.Id_evaluacion = ev.Id_evaluacion
+            INNER JOIN modulos m ON ev.Id_modulo = m.Id_modulo
+            INNER JOIN cursos c ON m.Id_curso = c.Id_curso
+            WHERE e.Id_entrega = ?
+        ", [$idEntrega]);
+
+        if (!$entrega) {
+            Log::error("❌ Entrega no encontrada - ID: $idEntrega");
+            return back()->with('error', 'Entrega no encontrada.');
+        }
+
+        Log::info("✅ Entrega encontrada - Estudiante: {$entrega->estudiante_nombre}, Evaluación: {$entrega->evaluacion_tipo}");
+
+        return view('docente.calificar_entrega', [
+            'usuario' => session('usuario'),
+            'entrega' => $entrega
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('❌ ERROR mostrando formulario de calificación: ' . $e->getMessage());
+        Log::error('Trace: ' . $e->getTraceAsString());
+        return back()->with('error', 'Error al cargar la entrega para calificar: ' . $e->getMessage());
     }
 }
 }

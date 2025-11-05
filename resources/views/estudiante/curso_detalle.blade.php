@@ -113,116 +113,62 @@
 
     <div class="container">
         <!-- Botón de Continuar (si hay tema pendiente) -->
-        @if($proximo_tema_pendiente)
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card border-success shadow">
-                    <div class="card-body text-center py-4">
-                        <h4 class="text-success mb-3">
-                            <i class="fas fa-play-circle me-2"></i>Continuar Aprendizaje
-                        </h4>
-                        <p class="mb-3">Continúa desde donde lo dejaste:</p>
-                        <h5 class="text-primary">"{{ $proximo_tema_pendiente->Nombre }}"</h5>
-                        <p class="text-muted mb-3">
-                            <i class="fas fa-folder me-1"></i>Módulo: {{ $proximo_tema_pendiente->modulo_nombre }}
-                        </p>
-                        <button class="btn accion-continuar" onclick="comenzarTema({{ $proximo_tema_pendiente->Id_tema }})">
-                            <i class="fas fa-play me-2"></i>Comenzar Tema
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        @endif
+      
 
         <!-- Módulos y Temas -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">
-                            <i class="fas fa-list-ol me-2"></i>Contenido del Curso
-                        </h4>
-                        <span class="badge bg-light text-primary">
-                            {{ $progreso->Temas_completados ?? 0 }}/{{ $total_temas_curso ?? 0 }} temas completados
-                        </span>
-                    </div>
-                    <div class="card-body">
-                        @foreach($modulos as $index => $modulo)
-                        <div class="card modulo-card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-folder me-2"></i>Módulo {{ $index + 1 }}: {{ $modulo->Nombre }}
-                                    </h5>
-                                    <p class="mb-0 small text-muted mt-1">{{ $modulo->Descripcion }}</p>
-                                </div>
-                                <span class="badge bg-primary">
-                                    {{ $modulo->temas_completados ?? 0 }}/{{ $modulo->total_temas }} temas
-                                </span>
-                            </div>
-                            <div class="card-body">
-                                @php
-                                    $temas_modulo = DB::select("
-                                        SELECT t.*, 
-                                               COALESCE(pt.Completado, 0) as completado
-                                        FROM temas t
-                                        LEFT JOIN progreso_tema pt ON t.Id_tema = pt.Id_tema 
-                                        WHERE t.Id_modulo = ?
-                                        ORDER BY t.Orden
-                                    ", [$modulo->Id_modulo]);
-                                @endphp
+        <!-- Módulos y Temas -->
+<!-- En tu curso_detalle.blade.php existente - REEMPLAZA la sección de módulos con esto: -->
 
-                                @foreach($temas_modulo as $temaIndex => $tema)
-                                <div class="tema-item {{ $tema->completado ? 'tema-completado' : 'tema-pendiente' }}">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex align-items-center">
-                                                @if($tema->completado)
-                                                <i class="fas fa-check-circle text-success me-3 fa-lg"></i>
-                                                @else
-                                                <i class="fas fa-circle text-warning me-3"></i>
-                                                @endif
-                                                <div>
-                                                    <h6 class="mb-1">
-                                                        Tema {{ $temaIndex + 1 }}: {{ $tema->Nombre }}
-                                                        @if($tema->completado)
-                                                        <span class="badge badge-completado ms-2">Completado</span>
-                                                        @else
-                                                        <span class="badge badge-pendiente ms-2">Pendiente</span>
-                                                        @endif
-                                                    </h6>
-                                                    <p class="mb-0 small text-muted">{{ $tema->Descripcion }}</p>
-                                                    @if($tema->Contenido)
-                                                    <small class="text-info">
-                                                        <i class="fas fa-file me-1"></i>{{ $tema->Contenido }}
-                                                    </small>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            @if($tema->completado)
-                                            <span class="badge bg-success me-2">
-                                                <i class="fas fa-check"></i> Completado
-                                            </span>
-                                            @else
-                                            <button class="btn btn-primary btn-sm" onclick="comenzarTema({{ $tema->Id_tema }})">
-                                                <i class="fas fa-play me-1"></i>Comenzar
-                                            </button>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                                @endforeach
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
+<!-- Módulos y Temas -->
+@foreach($modulos as $modulo)
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-folder me-2"></i>
+            {{ $modulo->Nombre }}
+            <span class="badge bg-primary float-end">
+                {{ $modulo->temas_completados }}/{{ $modulo->total_temas }} temas
+            </span>
+        </h5>
+        <p class="mb-0 text-muted">{{ $modulo->Descripcion }}</p>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            @foreach($modulo->temas as $tema)
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">
+                        @if($tema->completado)
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        @else
+                        <i class="fas fa-circle text-secondary me-2"></i>
+                        @endif
+                        {{ $tema->Nombre }}
+                    </h6>
+                    <p class="mb-1 text-muted small">{{ $tema->Descripcion }}</p>
+                    @if($tema->completado)
+                    <small class="text-success">
+                        <i class="fas fa-calendar me-1"></i>
+                        Completado: {{ \Carbon\Carbon::parse($tema->Fecha_completado)->format('d/m/Y H:i') }}
+                    </small>
+                    @endif
+                </div>
+                <div class="text-end">
+                    @if($tema->completado)
+                    <span class="badge bg-success me-2">Completado</span>
+                    @else
+                    <a href="{{ route('estudiante.curso.ver-tema', ['idCurso' => $curso->Id_curso, 'idTema' => $tema->Id_tema]) }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i>Ver Tema
+                    </a>
+                    @endif
                 </div>
             </div>
+            @endforeach
         </div>
-
+    </div>
+</div>
+@endforeach
         <!-- Evaluaciones Pendientes -->
        <!-- Evaluaciones Pendientes CORREGIDA -->
 @if(count($evaluaciones_pendientes) > 0)

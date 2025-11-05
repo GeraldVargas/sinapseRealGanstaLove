@@ -179,47 +179,62 @@
                 </h3>
                 
                 <div class="row">
-                    @foreach($cursos_disponibles as $curso)
-                    <div class="col-md-6 col-lg-4 mb-4 curso-card" data-type="disponible">
-                        <div class="card course-card course-available h-100">
-                            <div class="card-body">
-                                <h5 class="card-title text-success">{{ $curso->Titulo }}</h5>
-                                <p class="card-text text-muted small mb-3">
-                                    {{ Str::limit($curso->Descripcion, 120) }}
-                                </p>
-                                
-                                <div class="course-meta mb-3">
-                                    <div class="d-flex justify-content-between small text-muted mb-2">
-                                        <span><i class="fas fa-clock me-1"></i>{{ $curso->Duracion }}h</span>
-                                        <span><i class="fas fa-users me-1"></i>{{ $curso->total_estudiantes }} estudiantes</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between small text-muted">
-                                        <span><i class="fas fa-layer-group me-1"></i>{{ $curso->total_modulos }} módulos</span>
-                                        <span><i class="fas fa-tasks me-1"></i>{{ $curso->total_evaluaciones }} evaluaciones</span>
-                                    </div>
-                                </div>
-
-                                <div class="course-price mb-3">
-                                    @if($curso->Costo > 0)
-                                    <h5 class="text-success">${{ number_format($curso->Costo, 2) }}</h5>
-                                    @else
-                                    <h5 class="text-success">Gratuito</h5>
-                                    @endif
-                                </div>
-
-                                <!-- BOTÓN DE INSCRIPCIÓN -->
-                                <div class="d-grid">
-                                    <form action="{{ route('estudiante.inscribirse', $curso->Id_curso) }}" method="POST">
-                                        @csrf
-                                        <button type="submit" class="btn btn-inscribirse w-100">
-                                            <i class="fas fa-plus-circle me-2"></i>Inscribirse al Curso
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endforeach
+                    <!-- En estudiante/explorar_cursos.blade.php - agregar esto en la tarjeta de cursos -->
+@foreach($cursos_disponibles as $curso)
+<div class="col-md-4 mb-4">
+    <div class="card h-100">
+        <div class="card-body">
+            <h5 class="card-title">{{ $curso->Titulo }}</h5>
+            <p class="card-text">{{ Str::limit($curso->Descripcion, 100) }}</p>
+            
+            <!-- Mostrar información de cupos -->
+            @if(isset($curso->Cupos_disponibles))
+            <div class="mb-2">
+                @if($curso->Cupos_disponibles > 0)
+                <span class="badge bg-success">
+                    <i class="fas fa-users me-1"></i>
+                    {{ $curso->Cupos_disponibles }} cupos disponibles
+                </span>
+                @else
+                <span class="badge bg-danger">
+                    <i class="fas fa-times me-1"></i>
+                    Sin cupos disponibles
+                </span>
+                @endif
+            </div>
+            @endif
+            
+            <div class="curso-info">
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>{{ $curso->Duracion }} horas
+                </small>
+                <br>
+                <small class="text-muted">
+                    <i class="fas fa-book me-1"></i>{{ $curso->total_modulos }} módulos
+                </small>
+                <br>
+                <small class="text-muted">
+                    <i class="fas fa-users me-1"></i>{{ $curso->total_estudiantes }} estudiantes
+                </small>
+            </div>
+        </div>
+        <div class="card-footer">
+            @if(isset($curso->Cupos_disponibles) && $curso->Cupos_disponibles <= 0)
+            <button class="btn btn-secondary w-100" disabled>
+                <i class="fas fa-times me-2"></i>Sin Cupos
+            </button>
+            @else
+            <form action="{{ route('estudiante.inscribirse', $curso->Id_curso) }}" method="POST">
+                @csrf
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-plus me-2"></i>Inscribirse
+                </button>
+            </form>
+            @endif
+        </div>
+    </div>
+</div>
+@endforeach
                 </div>
             </div>
         </div>
@@ -234,37 +249,68 @@
                     <span class="badge bg-primary ms-2">{{ $cursos_inscritos->count() }}</span>
                 </h3>
                 
-                <div class="row">
-                    @foreach($cursos_inscritos as $curso)
-                    <div class="col-md-6 col-lg-4 mb-4 curso-card" data-type="inscrito">
-                        <div class="card course-card course-enrolled h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h5 class="card-title text-primary">{{ $curso->Titulo }}</h5>
-                                    <span class="badge badge-inscrito">Inscrito</span>
-                                </div>
-                                
-                                <p class="card-text text-muted small mb-3">
-                                    {{ Str::limit($curso->Descripcion, 100) }}
-                                </p>
-                                
-                                <div class="course-meta mb-3">
-                                    <div class="d-flex justify-content-between small text-muted">
-                                        <span><i class="fas fa-layer-group me-1"></i>{{ $curso->total_modulos }} módulos</span>
-                                        <span><i class="fas fa-tasks me-1"></i>{{ $curso->total_evaluaciones }} evaluaciones</span>
-                                    </div>
-                                </div>
-
-                                <div class="d-grid gap-2">
-                                    <a href="{{ route('estudiante.curso.ver', $curso->Id_curso) }}" class="btn btn-primary btn-sm">
-                                        <i class="fas fa-play-circle me-2"></i>Continuar Curso
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endforeach
+                <!-- En explorar_cursos.blade.php - BUSCA la sección de cursos disponibles y ACTUALÍZALA: -->
+<div class="row">
+    @foreach($cursos_disponibles as $curso)
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ $curso->Titulo }}</h5>
+                <p class="card-text text-muted">{{ Str::limit($curso->Descripcion, 120) }}</p>
+                
+                <!-- INFORMACIÓN DE CUPOS -->
+                <div class="mb-3">
+                    @if(isset($curso->Cupos_disponibles) && $curso->Cupos_disponibles > 0)
+                    <span class="badge bg-success">
+                        <i class="fas fa-users me-1"></i>
+                        {{ $curso->Cupos_disponibles }}/{{ $curso->Cupos_totales }} cupos
+                    </span>
+                    @elseif(isset($curso->Cupos_disponibles) && $curso->Cupos_disponibles <= 0)
+                    <span class="badge bg-danger">
+                        <i class="fas fa-times me-1"></i>
+                        Sin cupos disponibles
+                    </span>
+                    @else
+                    <span class="badge bg-info">
+                        <i class="fas fa-users me-1"></i>
+                        Cupos ilimitados
+                    </span>
+                    @endif
                 </div>
+
+                <div class="curso-info small text-muted">
+                    <div class="mb-1">
+                        <i class="fas fa-clock me-1"></i>{{ $curso->Duracion }} horas
+                    </div>
+                    <div class="mb-1">
+                        <i class="fas fa-book me-1"></i>{{ $curso->total_modulos }} módulos
+                    </div>
+                    <div class="mb-1">
+                        <i class="fas fa-tasks me-1"></i>{{ $curso->total_evaluaciones }} evaluaciones
+                    </div>
+                    <div>
+                        <i class="fas fa-user-graduate me-1"></i>{{ $curso->total_estudiantes }} estudiantes
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent">
+                @if(isset($curso->Cupos_disponibles) && $curso->Cupos_disponibles <= 0)
+                <button class="btn btn-secondary w-100" disabled>
+                    <i class="fas fa-times me-2"></i>Sin Cupos Disponibles
+                </button>
+                @else
+                <form action="{{ route('estudiante.inscribirse', $curso->Id_curso) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus me-2"></i>Inscribirse al Curso
+                    </button>
+                </form>
+                @endif
+            </div>
+        </div>
+    </div>
+    @endforeach
+</div>
             </div>
         </div>
         @endif

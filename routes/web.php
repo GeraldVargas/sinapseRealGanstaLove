@@ -9,6 +9,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CanjeController;
 use App\Http\Controllers\Admin\TriggerMonitorController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\RecompensaController;
 
 // ==================== RUTAS PÚBLICAS ====================
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
@@ -146,4 +147,50 @@ Route::get('/actualizar-puntos-auto/{idUsuario?}', [EstudianteController::class,
 Route::get('/actualizar-puntos-todos', [EstudianteController::class, 'actualizarPuntosTodos']);
 
 // ==================== RUTAS ALIAS (PARA COMPATIBILIDAD) ====================
-Route::get('/ranking', [EstudianteController::class, 'mostrarRanking'])->name('ranking');
+Route::get('/ranking', [RankingController::class, 'index'])->name('ranking.index');
+Route::get('/estudiante/evaluacion/{id}', [EstudianteController::class, 'verEvaluacion'])->name('estudiante.evaluacion.ver');
+Route::post('/estudiante/entrega/{id}/enviar', [EstudianteController::class, 'enviarEntrega'])->name('estudiante.entrega.enviar');
+Route::get('/estudiante/mis-entregas', [EstudianteController::class, 'misEntregas'])->name('estudiante.mis.entregas');
+// Rutas para calificar entregas (DOCENTE)
+// Rutas para calificar entregas (DOCENTE)
+Route::get('/docente/entrega/{id}/calificar', [DocenteController::class, 'mostrarCalificarEntrega'])->name('docente.entrega.calificar');
+Route::post('/docente/entrega/{id}/calificar', [DocenteController::class, 'calificarEntrega'])->name('docente.entrega.calificar.post');
+// Rutas para recompensas (ESTUDIANTE)
+Route::get('/estudiante/recompensas', [RecompensaController::class, 'catalogoRecompensas'])->name('estudiante.recompensas');
+Route::post('/estudiante/recompensas/canjear/{id}', [RecompensaController::class, 'canjearRecompensa'])->name('estudiante.recompensas.canjear');
+Route::get('/estudiante/recompensas/historial', [RecompensaController::class, 'miHistorialCanjes'])->name('estudiante.recompensas.historial');
+
+// Rutas para recompensas (ADMIN)
+Route::get('/admin/recompensas', [RecompensaController::class, 'gestionarRecompensas'])->name('admin.recompensas');
+Route::post('/admin/recompensas/guardar', [RecompensaController::class, 'guardarRecompensa'])->name('admin.recompensas.guardar');
+// En routes/web.php - agregar esta ruta
+Route::get('/estudiante/curso/{idCurso}/tema/{idTema}', [EstudianteController::class, 'verTema'])->name('estudiante.curso.ver-tema');
+// En routes/web.php - agregar estas rutas
+Route::get('/estudiante/curso/{idCurso}/tema/{idTema}', [EstudianteController::class, 'verTema'])->name('estudiante.curso.ver-tema');
+Route::post('/estudiante/curso/{idCurso}/completar-tema/{idTema}', [EstudianteController::class, 'completarTema'])->name('estudiante.curso.completar-tema');
+// En routes/web.php - AGREGAR estas rutas específicas para estudiante
+Route::prefix('estudiante')->group(function () {
+    // ... otras rutas existentes ...
+    
+    // Rutas para temas del estudiante
+    Route::get('/curso/{idCurso}/tema/{idTema}', [EstudianteController::class, 'verTema'])->name('estudiante.curso.ver-tema');
+    Route::post('/curso/{idCurso}/completar-tema/{idTema}', [EstudianteController::class, 'completarTema'])->name('estudiante.curso.completar-tema');
+});
+// En routes/web.php - DEBERÍA TENER ESTAS RUTAS:
+Route::prefix('ranking')->group(function () {
+    Route::get('/', [RankingController::class, 'index'])->name('ranking.index');
+    Route::get('/docente', [RankingController::class, 'rankingDocente'])->name('ranking.docente');
+    Route::get('/admin', [RankingController::class, 'rankingAdmin'])->name('ranking.admin');
+    Route::get('/json/{periodo?}', [RankingController::class, 'obtenerRankingJson'])->name('ranking.json');
+});
+
+// ==================== RUTAS RANKING ====================
+Route::prefix('ranking')->group(function () {
+    Route::get('/', [RankingController::class, 'index'])->name('ranking.index');
+    Route::post('/sincronizar', [RankingController::class, 'sincronizarRankingManual'])->name('ranking.sincronizar');
+    Route::get('/docente', [RankingController::class, 'rankingDocente'])->name('ranking.docente');
+    Route::get('/admin', [RankingController::class, 'rankingAdmin'])->name('ranking.admin');
+    Route::get('/json/{periodo?}', [RankingController::class, 'obtenerRankingJson'])->name('ranking.json');
+    // En routes/web.php - ruta temporal para actualizar ranking
+Route::get('/ranking/actualizar-completo', [RankingController::class, 'actualizarRankingCompleto']);
+});

@@ -200,10 +200,10 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
         return ['success' => false, 'error' => $e->getMessage()];
     }
 }
-    /**
-     * INSCRIPCIÓN CON GARANTÍA DE RELACIÓN
-     */
-   public function inscribirseCurso(Request $request, $idCurso)
+/**
+ * ELIMINAR INSCRIPCIÓN Y PROGRESO - SINCRONIZADO
+ */
+public function eliminarInscripcion($idCurso)
 {
     if (!session('usuario')) {
         return redirect('/login');
@@ -214,10 +214,100 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
     try {
         DB::beginTransaction();
 
-        // Verificar curso
+        // 1. Eliminar progreso primero
+        DB::table('progreso_curso')
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->where('Id_curso', $idCurso)
+            ->delete();
+
+        // 2. Eliminar inscripción
+        DB::table('inscripciones')
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->where('Id_curso', $idCurso)
+            ->delete();
+
+        DB::commit();
+
+        Log::info("✅ Inscripción y progreso eliminados - Usuario: {$usuario->Id_usuario}, Curso: $idCurso");
+
+        return redirect()->route('estudiante.dashboard')
+            ->with('success', 'Inscripción eliminada correctamente.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('ERROR eliminando inscripción: ' . $e->getMessage());
+        return redirect()->route('estudiante.dashboard')
+            ->with('error', 'Error al eliminar la inscripción: ' . $e->getMessage());
+    }
+}
+
+/**
+ * MÉTODO PARA ELIMINAR PROGRESO DUPLICADO MANUALMENTE
+ */
+public function eliminarProgresoDuplicado($idUsuario, $idCurso)
+{
+    try {
+        DB::beginTransaction();
+
+        // Encontrar el ID del progreso más reciente
+        $progresoReciente = DB::table('progreso_curso')
+            ->where('Id_usuario', $idUsuario)
+            ->where('Id_curso', $idCurso)
+            ->orderBy('Fecha_actualizacion', 'DESC')
+            ->first();
+
+        if ($progresoReciente) {
+            // Eliminar todos excepto el más reciente
+            $eliminados = DB::table('progreso_curso')
+                ->where('Id_usuario', $idUsuario)
+                ->where('Id_curso', $idCurso)
+                ->where('Id_progreso', '!=', $progresoReciente->Id_progreso)
+                ->delete();
+
+            DB::commit();
+            
+            Log::info("✅ Duplicados eliminados: $eliminados, Mantenido: {$progresoReciente->Id_progreso}");
+            
+            return [
+                'success' => true,
+                'eliminados' => $eliminados,
+                'mantenido' => $progresoReciente->Id_progreso
+            ];
+        }
+
+        DB::commit();
+        return ['success' => true, 'eliminados' => 0];
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('ERROR eliminando duplicados: ' . $e->getMessage());
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+    /**
+     * INSCRIPCIÓN CON GARANTÍA DE RELACIÓN
+     */
+  // En EstudianteController - método inscribirseCurso ACTUALIZADO
+public function inscribirseCurso(Request $request, $idCurso)
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
+
+    $usuario = session('usuario');
+
+    try {
+        DB::beginTransaction();
+
+        // Verificar curso y cupos
         $curso = DB::table('cursos')->where('Id_curso', $idCurso)->first();
         if (!$curso) {
             throw new \Exception('El curso no existe.');
+        }
+
+        // VERIFICAR CUPOS DISPONIBLES
+        if (isset($curso->Cupos_disponibles) && $curso->Cupos_disponibles <= 0) {
+            throw new \Exception('Lo sentimos, este curso ya no tiene cupos disponibles.');
         }
 
         // Verificar inscripción existente
@@ -269,7 +359,22 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
 
         Log::info("✅ Inscripción creada con ID: $idInscripcion");
 
-        // 2. VERIFICAR QUE NO EXISTA PROGRESO ANTES DE INSERTAR
+        // 2. ACTUALIZAR CUPOS DEL CURSO
+        if (isset($curso->Cupos_disponibles)) {
+            $nuevosCuposDisponibles = $curso->Cupos_disponibles - 1;
+            $estadoCupos = $nuevosCuposDisponibles > 0 ? 'disponible' : 'completo';
+            
+            DB::table('cursos')
+                ->where('Id_curso', $idCurso)
+                ->update([
+                    'Cupos_disponibles' => $nuevosCuposDisponibles,
+                    'Estado_cupos' => $estadoCupos
+                ]);
+            
+            Log::info("✅ Cupos actualizados: $nuevosCuposDisponibles disponibles");
+        }
+
+        // 3. VERIFICAR QUE NO EXISTA PROGRESO ANTES DE INSERTAR
         $progresoExistente = DB::table('progreso_curso')
             ->where('Id_usuario', $usuario->Id_usuario)
             ->where('Id_curso', $idCurso)
@@ -627,32 +732,7 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
         }
     }
 
-    private function recalcularPosicionesRanking($periodo)
-    {
-        try {
-            // Obtener todos los rankings del periodo ordenados por puntos
-            $rankings = DB::select("
-                SELECT r.Id_ranking, r.Total_puntos_acumulados
-                FROM ranking r
-                WHERE r.Periodo = ?
-                ORDER BY r.Total_puntos_acumulados DESC
-            ", [$periodo]);
-
-            // Actualizar posiciones
-            $posicion = 1;
-            foreach ($rankings as $ranking) {
-                DB::table('ranking')
-                    ->where('Id_ranking', $ranking->Id_ranking)
-                    ->update(['Posicion' => $posicion]);
-                $posicion++;
-            }
-
-            Log::info("🔄 Posiciones de ranking recalculadas para periodo $periodo");
-
-        } catch (\Exception $e) {
-            Log::error('ERROR en recalcularPosicionesRanking: ' . $e->getMessage());
-        }
-    }
+  
 
 
 
@@ -688,7 +768,60 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
     // ... (MANTENER TODOS LOS OTROS MÉTODOS QUE YA FUNCIONAN BIEN)
     // explorarCursos(), inscribirseCurso(), verCurso(), completarTema(), etc.
     // Estos métodos parecen estar funcionando correctamente
+// En EstudianteController - método explorarCursos ACTUALIZADO
+public function explorarCursos()
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
 
+    $usuario = session('usuario');
+
+    try {
+        // Primero obtener cursos inscritos (misma lógica que dashboard)
+        $cursos_inscritos_ids = DB::table('inscripciones as i')
+            ->join('cursos as c', 'i.Id_curso', '=', 'c.Id_curso')
+            ->select('c.Id_curso')
+            ->where('i.Id_usuario', $usuario->Id_usuario)
+            ->where('i.Estado', 1)
+            ->pluck('c.Id_curso')
+            ->toArray();
+
+        // Luego obtener todos los cursos CON INFORMACIÓN DE CUPOS
+        $todos_cursos = DB::table('cursos as c')
+            ->select(
+                'c.Id_curso',
+                'c.Titulo',
+                'c.Descripcion',
+                'c.Duracion',
+                'c.Costo',
+                'c.Cupos_totales',
+                'c.Cupos_disponibles',
+                'c.Estado_cupos',
+                DB::raw('(SELECT COUNT(*) FROM modulos m WHERE m.Id_curso = c.Id_curso) as total_modulos'),
+                DB::raw('(SELECT COUNT(*) FROM evaluaciones e INNER JOIN modulos m ON e.Id_modulo = m.Id_modulo WHERE m.Id_curso = c.Id_curso) as total_evaluaciones'),
+                DB::raw('(SELECT COUNT(*) FROM inscripciones i WHERE i.Id_curso = c.Id_curso AND i.Estado = 1) as total_estudiantes'),
+                DB::raw('CASE WHEN c.Id_curso IN (' . ($cursos_inscritos_ids ? implode(',', $cursos_inscritos_ids) : '0') . ') THEN 1 ELSE 0 END as ya_inscrito')
+            )
+            ->orderBy('c.Titulo')
+            ->get();
+
+        // Separar cursos
+        $cursos_disponibles = collect($todos_cursos)->where('ya_inscrito', 0)->values();
+        $cursos_inscritos = collect($todos_cursos)->where('ya_inscrito', 1)->values();
+
+        return view('estudiante.explorar_cursos', compact(
+            'usuario',
+            'cursos_disponibles',
+            'cursos_inscritos',
+            'todos_cursos'
+        ));
+
+    } catch (\Exception $e) {
+        Log::error('ERROR en explorar cursos: ' . $e->getMessage());
+        return redirect('/estudiante/dashboard')->with('error', 'Error al cargar los cursos: ' . $e->getMessage());
+    }
+}
     /**
      * MÉTODO PARA FIX RÁPIDO DEL SISTEMA
      */
@@ -940,57 +1073,7 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
             ]);
         }
     }
-    public function explorarCursos()
-    {
-        if (!session('usuario')) {
-            return redirect('/login');
-        }
-
-        $usuario = session('usuario');
-
-        try {
-            // Primero obtener cursos inscritos (misma lógica que dashboard)
-            $cursos_inscritos_ids = DB::table('inscripciones as i')
-                ->join('cursos as c', 'i.Id_curso', '=', 'c.Id_curso')
-                ->select('c.Id_curso')
-                ->where('i.Id_usuario', $usuario->Id_usuario)
-                ->where('i.Estado', 1)
-                ->pluck('c.Id_curso')
-                ->toArray();
-
-            // Luego obtener todos los cursos
-            $todos_cursos = DB::table('cursos as c')
-                ->select(
-                    'c.Id_curso',
-                    'c.Titulo',
-                    'c.Descripcion',
-                    'c.Duracion',
-                    'c.Costo',
-                    DB::raw('(SELECT COUNT(*) FROM modulos m WHERE m.Id_curso = c.Id_curso) as total_modulos'),
-                    DB::raw('(SELECT COUNT(*) FROM evaluaciones e INNER JOIN modulos m ON e.Id_modulo = m.Id_modulo WHERE m.Id_curso = c.Id_curso) as total_evaluaciones'),
-                    DB::raw('(SELECT COUNT(*) FROM inscripciones i WHERE i.Id_curso = c.Id_curso AND i.Estado = 1) as total_estudiantes'),
-                    DB::raw('CASE WHEN c.Id_curso IN (' . ($cursos_inscritos_ids ? implode(',', $cursos_inscritos_ids) : '0') . ') THEN 1 ELSE 0 END as ya_inscrito')
-                )
-                ->orderBy('c.Titulo')
-                ->get();
-
-            // Separar cursos
-            $cursos_disponibles = collect($todos_cursos)->where('ya_inscrito', 0)->values();
-            $cursos_inscritos = collect($todos_cursos)->where('ya_inscrito', 1)->values();
-
-            return view('estudiante.explorar_cursos', compact(
-                'usuario',
-                'cursos_disponibles',
-                'cursos_inscritos',
-                'todos_cursos'
-            ));
-
-        } catch (\Exception $e) {
-            Log::error('ERROR en explorar cursos: ' . $e->getMessage());
-            return redirect('/estudiante/dashboard')->with('error', 'Error al cargar los cursos: ' . $e->getMessage());
-        }
-    }
-
+    
     /**
      * INSCRIPCIÓN A CURSO 
      */
@@ -998,116 +1081,161 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
     /**
      * VER CURSO COMPLETO
      */
-    public function verCurso($idCurso)
-    {
-        if (!session('usuario')) {
-            return redirect('/login');
-        }
-
-        $usuario = session('usuario');
-
-        try {
-            // Verificar que el usuario está inscrito
-            $inscripcion = DB::table('inscripciones')
-                ->where('Id_usuario', $usuario->Id_usuario)
-                ->where('Id_curso', $idCurso)
-                ->where('Estado', 1)
-                ->first();
-
-            if (!$inscripcion) {
-                return redirect('/estudiante/dashboard')->with('error', 'No estás inscrito en este curso.');
-            }
-
-            // Obtener información del curso
-            $curso = DB::table('cursos')->where('Id_curso', $idCurso)->first();
-            
-            // Obtener o crear progreso del curso
-            $progreso = DB::table('progreso_curso')
-                ->where('Id_usuario', $usuario->Id_usuario)
-                ->where('Id_curso', $idCurso)
-                ->first();
-
-            if (!$progreso) {
-                // Crear progreso si no existe
-                $progreso_id = DB::table('progreso_curso')->insertGetId([
-                    'Id_usuario' => $usuario->Id_usuario,
-                    'Id_curso' => $idCurso,
-                    'Fecha_actualizacion' => now(),
-                    'Porcentaje' => 0,
-                    'Nivel' => 1,
-                    'Modulos_completados' => 0,
-                    'Temas_completados' => 0,
-                    'Evaluaciones_superadas' => 0,
-                    'Actividades_superadas' => 0
-                ]);
-                $progreso = DB::table('progreso_curso')->where('Id_progreso', $progreso_id)->first();
-            }
-
-            // Obtener módulos con sus temas
-            $modulos = DB::select("
-                SELECT 
-                    m.*,
-                    (SELECT COUNT(*) FROM temas t WHERE t.Id_modulo = m.Id_modulo) as total_temas,
-                    (SELECT COUNT(*) FROM progreso_tema pt 
-                     INNER JOIN temas t ON pt.Id_tema = t.Id_tema 
-                     WHERE t.Id_modulo = m.Id_modulo 
-                     AND pt.Completado = 1) as temas_completados
-                FROM modulos m
-                WHERE m.Id_curso = ?
-                ORDER BY m.Id_modulo
-            ", [$idCurso]);
-
-            // Calcular total de temas del curso
-            $total_temas_curso = DB::selectOne("
-                SELECT COUNT(*) as total FROM temas t
-                INNER JOIN modulos m ON t.Id_modulo = m.Id_modulo
-                WHERE m.Id_curso = ?
-            ", [$idCurso])->total;
-
-            // Encontrar el próximo tema pendiente para "Continuar"
-            $proximo_tema_pendiente = $this->obtenerProximoTemaPendiente($usuario->Id_usuario, $idCurso);
-
-            // Obtener evaluaciones pendientes del curso
-            $evaluaciones_pendientes = DB::select("
-                SELECT 
-                    e.Id_evaluacion,
-                    e.Tipo,
-                    e.Puntaje_maximo,
-                    e.Fecha_inicio,
-                    e.Fecha_fin,
-                    m.Nombre as modulo_nombre,
-                    m.Id_modulo
-                FROM evaluaciones e
-                INNER JOIN modulos m ON e.Id_modulo = m.Id_modulo
-                WHERE m.Id_curso = ?
-                AND NOT EXISTS (
-                    SELECT 1 
-                    FROM progreso_evaluacion pe 
-                    WHERE pe.Id_evaluacion = e.Id_evaluacion 
-                    AND pe.Aprobado = 1
-                )
-                ORDER BY e.Fecha_inicio ASC
-            ", [$idCurso]);
-
-            Log::info("📋 Evaluaciones pendientes encontradas: " . count($evaluaciones_pendientes));
-
-            return view('estudiante.curso_detalle', compact(
-                'usuario',
-                'curso',
-                'progreso',
-                'modulos',
-                'proximo_tema_pendiente',
-                'evaluaciones_pendientes',
-                'total_temas_curso'
-            ));
-
-        } catch (\Exception $e) {
-            Log::error('ERROR al ver curso: ' . $e->getMessage());
-            Log::error('Trace: ' . $e->getTraceAsString());
-            return redirect('/estudiante/dashboard')->with('error', 'Error al cargar el curso: ' . $e->getMessage());
-        }
+    // En EstudianteController - mejorar el método verCurso
+// En EstudianteController - método verCurso ACTUALIZADO
+public function verCurso($idCurso)
+{
+    if (!session('usuario')) {
+        return redirect('/login');
     }
 
+    $usuario = session('usuario');
+
+    try {
+        // Verificar que el usuario está inscrito
+        $inscripcion = DB::table('inscripciones')
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->where('Id_curso', $idCurso)
+            ->where('Estado', 1)
+            ->first();
+
+        if (!$inscripcion) {
+            return redirect('/estudiante/dashboard')->with('error', 'No estás inscrito en este curso.');
+        }
+
+        // Obtener información del curso
+        $curso = DB::table('cursos')->where('Id_curso', $idCurso)->first();
+        
+        // Obtener o crear progreso del curso
+        $progreso = DB::table('progreso_curso')
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->where('Id_curso', $idCurso)
+            ->first();
+
+        if (!$progreso) {
+            // Crear progreso si no existe
+            $progreso_id = DB::table('progreso_curso')->insertGetId([
+                'Id_usuario' => $usuario->Id_usuario,
+                'Id_curso' => $idCurso,
+                'Fecha_actualizacion' => now(),
+                'Porcentaje' => 0,
+                'Nivel' => 1,
+                'Modulos_completados' => 0,
+                'Temas_completados' => 0,
+                'Evaluaciones_superadas' => 0,
+                'Actividades_superadas' => 0
+            ]);
+            $progreso = DB::table('progreso_curso')->where('Id_progreso', $progreso_id)->first();
+        }
+
+        // Obtener módulos con sus temas y progreso del estudiante
+        $modulos = DB::select("
+            SELECT 
+                m.*,
+                (SELECT COUNT(*) FROM temas t WHERE t.Id_modulo = m.Id_modulo) as total_temas,
+                (SELECT COUNT(*) FROM temas t 
+                 INNER JOIN progreso_tema pt ON t.Id_tema = pt.Id_tema 
+                 WHERE t.Id_modulo = m.Id_modulo 
+                 AND pt.Completado = 1
+                 AND pt.Id_usuario = ?) as temas_completados
+            FROM modulos m
+            WHERE m.Id_curso = ?
+            ORDER BY m.Id_modulo
+        ", [$usuario->Id_usuario, $idCurso]);
+
+        // Obtener temas detallados con progreso
+        $temas_detallados = [];
+        foreach ($modulos as $modulo) {
+            $temas = DB::select("
+                SELECT 
+                    t.*,
+                    CASE WHEN pt.Completado = 1 THEN 1 ELSE 0 END as completado,
+                    pt.Fecha_completado,
+                    pt.Porcentaje as progreso_tema
+                FROM temas t
+                LEFT JOIN progreso_tema pt ON (t.Id_tema = pt.Id_tema AND pt.Id_usuario = ?)
+                WHERE t.Id_modulo = ?
+                ORDER BY t.Orden
+            ", [$usuario->Id_usuario, $modulo->Id_modulo]);
+            
+            $modulo->temas = $temas;
+        }
+
+        // CALCULAR PORCENTAJE ACTUALIZADO - CONSIDERANDO MÓDULOS Y TEMAS
+        $total_temas_curso = DB::selectOne("
+            SELECT COUNT(*) as total FROM temas t
+            INNER JOIN modulos m ON t.Id_modulo = m.Id_modulo
+            WHERE m.Id_curso = ?
+        ", [$idCurso])->total;
+
+        $temas_completados_curso = DB::selectOne("
+            SELECT COUNT(*) as completados
+            FROM progreso_tema pt
+            INNER JOIN temas t ON pt.Id_tema = t.Id_tema
+            INNER JOIN modulos m ON t.Id_modulo = m.Id_modulo
+            WHERE m.Id_curso = ? AND pt.Id_usuario = ? AND pt.Completado = 1
+        ", [$idCurso, $usuario->Id_usuario])->completados;
+
+        // Calcular porcentaje real
+        $porcentaje_actual = $total_temas_curso > 0 ? 
+            round(($temas_completados_curso / $total_temas_curso) * 100) : 0;
+        $porcentaje_actual = min(100, $porcentaje_actual);
+
+        // ACTUALIZAR EL PORCENTAJE EN LA BASE DE DATOS SI ES DIFERENTE
+        if ($progreso->Porcentaje != $porcentaje_actual) {
+            DB::table('progreso_curso')
+                ->where('Id_progreso', $progreso->Id_progreso)
+                ->update([
+                    'Porcentaje' => $porcentaje_actual,
+                    'Temas_completados' => $temas_completados_curso,
+                    'Fecha_actualizacion' => now()
+                ]);
+            
+            // Actualizar variable $progreso
+            $progreso->Porcentaje = $porcentaje_actual;
+            $progreso->Temas_completados = $temas_completados_curso;
+            
+            Log::info("📊 Porcentaje actualizado - Curso: $idCurso, Usuario: {$usuario->Id_usuario}, Porcentaje: $porcentaje_actual%");
+        }
+
+        // Obtener evaluaciones pendientes del curso
+        $evaluaciones_pendientes = DB::select("
+            SELECT 
+                e.Id_evaluacion,
+                e.Tipo,
+                e.Puntaje_maximo,
+                e.Fecha_inicio,
+                e.Fecha_fin,
+                m.Nombre as modulo_nombre,
+                m.Id_modulo
+            FROM evaluaciones e
+            INNER JOIN modulos m ON e.Id_modulo = m.Id_modulo
+            WHERE m.Id_curso = ?
+            AND NOT EXISTS (
+                SELECT 1 
+                FROM progreso_evaluacion pe 
+                WHERE pe.Id_evaluacion = e.Id_evaluacion 
+                AND pe.Id_usuario = ?
+                AND pe.Aprobado = 1
+            )
+            ORDER BY e.Fecha_inicio ASC
+        ", [$idCurso, $usuario->Id_usuario]);
+
+        return view('estudiante.curso_detalle', compact(
+            'usuario',
+            'curso',
+            'progreso',
+            'modulos',
+            'evaluaciones_pendientes',
+            'total_temas_curso'
+        ));
+
+    } catch (\Exception $e) {
+        Log::error('ERROR al ver curso: ' . $e->getMessage());
+        Log::error('Trace: ' . $e->getTraceAsString());
+        return redirect('/estudiante/dashboard')->with('error', 'Error al cargar el curso: ' . $e->getMessage());
+    }
+}
     /**
      * OBTENER PRÓXIMO TEMA PENDIENTE
      */
@@ -1131,120 +1259,7 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
     /**
      * COMPLETAR TEMA Y ASIGNAR PUNTOS
      */
-    public function completarTema(Request $request, $idCurso, $idTema)
-    {
-        if (!session('usuario')) {
-            Log::error("❌ No hay usuario en sesión");
-            return response()->json(['success' => false, 'message' => 'No autenticado']);
-        }
-
-        $usuario = session('usuario');
-        $usuarioId = $usuario->Id_usuario;
-
-        Log::info("🎯 === INICIANDO COMPLETADO DE TEMA ===");
-        Log::info("Usuario ID: $usuarioId, Curso: $idCurso, Tema: $idTema");
-
-        try {
-            DB::beginTransaction();
-
-            // 1. VERIFICAR SI EL TEMA YA ESTÁ COMPLETADO
-            $progreso_tema = DB::table('progreso_tema')
-                ->where('Id_tema', $idTema)
-                ->where('Completado', 1)
-                ->first();
-
-            if ($progreso_tema) {
-                Log::warning("⚠️ Tema $idTema YA estaba completado");
-                DB::rollBack();
-                return response()->json(['success' => false, 'message' => 'Este tema ya estaba completado']);
-            }
-
-            Log::info("✅ Tema $idTema no completado, procediendo...");
-
-            // 2. CREAR REGISTRO EN progreso_tema
-            DB::table('progreso_tema')->insert([
-                'Id_tema' => $idTema,
-                'Completado' => 1,
-                'Porcentaje' => 100,
-                'Fecha_completado' => now()
-            ]);
-
-            Log::info("✅ Progreso_tema creado para tema $idTema");
-
-            // 3. OBTENER PROGRESO DEL CURSO
-            $progreso = DB::table('progreso_curso')
-                ->where('Id_usuario', $usuarioId)
-                ->where('Id_curso', $idCurso)
-                ->first();
-
-            if (!$progreso) {
-                Log::error("❌ No se encontró progreso del curso $idCurso para usuario $usuarioId");
-                DB::rollBack();
-                return response()->json(['success' => false, 'message' => 'No estás inscrito en este curso']);
-            }
-
-            Log::info("📊 Progreso del curso encontrado - Temas completados: {$progreso->Temas_completados}");
-
-            // 4. ACTUALIZAR ESTADÍSTICAS DEL CURSO
-            $nuevos_temas_completados = $progreso->Temas_completados + 1;
-            
-            // Calcular total de temas del curso
-            $total_temas_curso = DB::selectOne("
-                SELECT COUNT(*) as total 
-                FROM temas t
-                INNER JOIN modulos m ON t.Id_modulo = m.Id_modulo
-                WHERE m.Id_curso = ?
-            ", [$idCurso])->total;
-
-            $nuevo_porcentaje = min(100, round(($nuevos_temas_completados / $total_temas_curso) * 100));
-
-            Log::info("📈 Progreso actual: $nuevos_temas_completados/$total_temas_curso temas = $nuevo_porcentaje%");
-
-            // Actualizar progreso del curso
-            DB::table('progreso_curso')
-                ->where('Id_progreso', $progreso->Id_progreso)
-                ->update([
-                    'Temas_completados' => $nuevos_temas_completados,
-                    'Porcentaje' => $nuevo_porcentaje,
-                    'Fecha_actualizacion' => now()
-                ]);
-
-            Log::info("✅ Progreso del curso actualizado");
-
-            // 5. ASIGNAR PUNTOS POR TEMA COMPLETADO (10 puntos)
-            Log::info("💰 Asignando 10 puntos por tema completado");
-            $puntosAsignados = $this->asignarPuntos($usuarioId, 10, "Tema completado - Curso: $idCurso, Tema: $idTema");
-
-            // 6. VERIFICAR MÓDULO COMPLETADO
-            $moduloCompletado = $this->verificarYAsignarPuntosModulo($usuarioId, $idCurso, $idTema);
-            
-            // 7. VERIFICAR CURSO COMPLETADO
-            $cursoCompletado = $this->verificarYAsignarPuntosCurso($usuarioId, $idCurso);
-
-            DB::commit();
-
-            Log::info("🎉 === TEMA COMPLETADO EXITOSAMENTE ===");
-            Log::info("📊 Resumen:");
-            Log::info("   - Puntos por tema: +10");
-            Log::info("   - Módulo completado: " . ($moduloCompletado ? 'SÍ (+50)' : 'NO'));
-            Log::info("   - Curso completado: " . ($cursoCompletado ? 'SÍ (+200)' : 'NO'));
-
-            return response()->json([
-                'success' => true, 
-                'message' => '¡Tema completado! +10 puntos' . 
-                            ($moduloCompletado ? ' + Módulo completado! +50 puntos' : '') .
-                            ($cursoCompletado ? ' + Curso completado! +200 puntos' : ''),
-                'puntos_otorgados' => 10 + ($moduloCompletado ? 50 : 0) + ($cursoCompletado ? 200 : 0)
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('❌ ERROR en completarTema: ' . $e->getMessage());
-            Log::error('Trace: ' . $e->getTraceAsString());
-            return response()->json(['success' => false, 'message' => 'Error interno del sistema: ' . $e->getMessage()]);
-        }
-    }
-
+   
     /**
      * VERIFICAR Y ASIGNAR PUNTOS POR MÓDULO COMPLETADO
      */
@@ -1347,59 +1362,148 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
     /**
      * ASIGNAR PUNTOS AL USUARIO
      */
-    private function asignarPuntos($idUsuario, $puntos, $razon)
-    {
-        try {
-            Log::info("💰 ASIGNANDO PUNTOS: Usuario $idUsuario, Puntos: $puntos, Razón: $razon");
+    // En EstudianteController - método asignarPuntos ACTUALIZADO
+// En EstudianteController - método asignarPuntos ACTUALIZADO
+private function asignarPuntos($idUsuario, $puntos, $razon)
+{
+    try {
+        Log::info("💰 ASIGNANDO PUNTOS: Usuario $idUsuario, Puntos: $puntos, Razón: $razon");
 
-            // Buscar gestión de puntos existente
-            $gestion_puntos = DB::table('gestion_puntos')
+        // Buscar gestión de puntos existente
+        $gestion_puntos = DB::table('gestion_puntos')
+            ->where('Id_usuario', $idUsuario)
+            ->first();
+
+        if ($gestion_puntos) {
+            Log::info("📊 Puntos actuales - Actual: {$gestion_puntos->Total_puntos_actual}, Acumulados: {$gestion_puntos->Total_puntos_acumulados}");
+            
+            // Actualizar puntos existentes
+            DB::table('gestion_puntos')
                 ->where('Id_usuario', $idUsuario)
-                ->first();
-
-            if ($gestion_puntos) {
-                Log::info("📊 Puntos actuales - Actual: {$gestion_puntos->Total_puntos_actual}, Acumulados: {$gestion_puntos->Total_puntos_acumulados}");
-                
-                // Actualizar puntos existentes
-                DB::table('gestion_puntos')
-                    ->where('Id_usuario', $idUsuario)
-                    ->update([
-                        'Total_puntos_actual' => $gestion_puntos->Total_puntos_actual + $puntos,
-                        'Total_puntos_acumulados' => $gestion_puntos->Total_puntos_acumulados + $puntos,
-                        'puntos_acumulados_mes' => ($gestion_puntos->puntos_acumulados_mes ?? 0) + $puntos,
-                        'puntos_acumulados_total' => ($gestion_puntos->puntos_acumulados_total ?? 0) + $puntos
-                    ]);
-
-                Log::info("✅ Puntos actualizados: +$puntos puntos");
-
-            } else {
-                Log::info("🆕 Creando NUEVO registro de puntos para usuario $idUsuario");
-                
-                // Crear nueva gestión de puntos
-                DB::table('gestion_puntos')->insert([
-                    'Id_usuario' => $idUsuario,
-                    'Total_puntos_actual' => $puntos,
-                    'Total_puntos_acumulados' => $puntos,
-                    'puntos_acumulados_mes' => $puntos,
-                    'puntos_acumulados_total' => $puntos,
-                    'Total_saldo_usado' => 0,
-                    'puntos_canjeados' => 0,
-                    'Id_ranking' => null
+                ->update([
+                    'Total_puntos_actual' => $gestion_puntos->Total_puntos_actual + $puntos,
+                    'Total_puntos_acumulados' => $gestion_puntos->Total_puntos_acumulados + $puntos,
+                    'puntos_acumulados_mes' => ($gestion_puntos->puntos_acumulados_mes ?? 0) + $puntos,
+                    'puntos_acumulados_total' => ($gestion_puntos->puntos_acumulados_total ?? 0) + $puntos
                 ]);
 
-                Log::info("✅ Nuevo registro de puntos creado con $puntos puntos");
-            }
+            Log::info("✅ Puntos actualizados: +$puntos puntos");
 
-            // ACTUALIZAR RANKING
-            $this->actualizarRanking($idUsuario);
+        } else {
+            Log::info("🆕 Creando NUEVO registro de puntos para usuario $idUsuario");
+            
+            // Crear nueva gestión de puntos
+            DB::table('gestion_puntos')->insert([
+                'Id_usuario' => $idUsuario,
+                'Total_puntos_actual' => $puntos,
+                'Total_puntos_acumulados' => $puntos,
+                'puntos_acumulados_mes' => $puntos,
+                'puntos_acumulados_total' => $puntos,
+                'Total_saldo_usido' => 0,
+                'puntos_canjeados' => 0,
+                'Id_ranking' => null
+            ]);
 
-            return true;
-
-        } catch (\Exception $e) {
-            Log::error('❌ ERROR en asignarPuntos: ' . $e->getMessage());
-            return false;
+            Log::info("✅ Nuevo registro de puntos creado con $puntos puntos");
         }
+
+        // ACTUALIZAR RANKING AUTOMÁTICAMENTE
+        $this->actualizarRankingUsuario($idUsuario);
+
+        return true;
+
+    } catch (\Exception $e) {
+        Log::error('❌ ERROR en asignarPuntos: ' . $e->getMessage());
+        return false;
     }
+}
+
+// NUEVO MÉTODO: Actualizar ranking de un usuario específico
+private function actualizarRankingUsuario($idUsuario)
+{
+    try {
+        $periodo_actual = date('F Y'); // Ej: "Noviembre 2025"
+        $periodo_date = date('Y-m-01'); // Primer día del mes
+        
+        // Obtener puntos actuales del usuario
+        $gestion_puntos = DB::table('gestion_puntos')
+            ->where('Id_usuario', $idUsuario)
+            ->first();
+
+        if (!$gestion_puntos) {
+            Log::warning("⚠️ No se encontraron puntos para usuario $idUsuario");
+            return;
+        }
+
+        $puntos_acumulados = $gestion_puntos->Total_puntos_acumulados;
+
+        // Verificar si el usuario ya tiene ranking este mes
+        $ranking_existente = DB::table('ranking')
+            ->where('Id_usuario', $idUsuario)
+            ->where('Periodo', $periodo_actual)
+            ->first();
+
+        if ($ranking_existente) {
+            // Actualizar puntos existentes
+            DB::table('ranking')
+                ->where('Id_ranking', $ranking_existente->Id_ranking)
+                ->update([
+                    'Total_puntos_acumulados' => $puntos_acumulados
+                ]);
+            Log::info("✅ Ranking actualizado - Usuario: $idUsuario, Puntos: $puntos_acumulados");
+        } else {
+            // Crear nuevo registro de ranking
+            DB::table('ranking')->insert([
+                'Id_usuario' => $idUsuario,
+                'Periodo' => $periodo_actual,
+                'Total_puntos_acumulados' => $puntos_acumulados,
+                'periodo_date' => $periodo_date,
+                'Posicion' => 999 // Temporal, se recalcula después
+            ]);
+            Log::info("✅ Nuevo ranking creado - Usuario: $idUsuario, Puntos: $puntos_acumulados");
+        }
+
+        // Recalcular todas las posiciones del ranking
+        $this->recalcularPosicionesRanking($periodo_actual);
+
+    } catch (\Exception $e) {
+        Log::error('❌ ERROR actualizando ranking usuario: ' . $e->getMessage());
+    }
+}
+
+// NUEVO MÉTODO: Recalcular todas las posiciones del ranking
+private function recalcularPosicionesRanking($periodo)
+{
+    try {
+        Log::info("🔄 Recalculando posiciones del ranking para: $periodo");
+        
+        // Obtener todos los rankings del periodo ordenados por puntos (solo estudiantes)
+        $rankings = DB::select("
+            SELECT r.Id_ranking, r.Total_puntos_acumulados, r.Id_usuario
+            FROM ranking r
+            INNER JOIN usuarios u ON r.Id_usuario = u.Id_usuario
+            INNER JOIN rol_usuario ru ON u.Id_usuario = ru.Id_usuario  
+            INNER JOIN roles rol ON ru.Id_rol = rol.Id_rol
+            WHERE r.Periodo = ? 
+            AND rol.Nombre = 'Estudiante'
+            ORDER BY r.Total_puntos_acumulados DESC
+        ", [$periodo]);
+
+        // Actualizar posiciones
+        $posicion = 1;
+        foreach ($rankings as $ranking) {
+            DB::table('ranking')
+                ->where('Id_ranking', $ranking->Id_ranking)
+                ->update(['Posicion' => $posicion]);
+            $posicion++;
+        }
+
+        Log::info("✅ Posiciones recalculadas: $periodo - $posicion participantes");
+
+    } catch (\Exception $e) {
+        Log::error('❌ ERROR recalculando posiciones: ' . $e->getMessage());
+    }
+}
     
     /**
      * VER ESTADO DE LA RELACIÓN INSCRIPCIONES-PROGRESO_CURSO
@@ -1467,7 +1571,435 @@ public function sincronizarInscripcionesProgreso($idUsuario = null)
     }
 
     /**
-     * DASHBOARD MEJORADO - SOLO MUESTRA CURSOS CON INSCRIPCIÓN ACTIVA Y PROGRESO
-     */
-   
+ * VER EVALUACIÓN Y FORMULARIO DE ENTREGA
+ */
+public function verEvaluacion($idEvaluacion)
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
+
+    $usuario = session('usuario');
+
+    try {
+        // Obtener información de la evaluación
+        $evaluacion = DB::selectOne("
+            SELECT 
+                e.*,
+                m.Nombre as modulo_nombre,
+                c.Titulo as curso_titulo,
+                c.Id_curso
+            FROM evaluaciones e
+            INNER JOIN modulos m ON e.Id_modulo = m.Id_modulo
+            INNER JOIN cursos c ON m.Id_curso = c.Id_curso
+            WHERE e.Id_evaluacion = ?
+        ", [$idEvaluacion]);
+
+        if (!$evaluacion) {
+            return redirect('/estudiante/dashboard')->with('error', 'Evaluación no encontrada.');
+        }
+
+        // Verificar que el estudiante está inscrito en el curso
+        $inscripcion = DB::table('inscripciones')
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->where('Id_curso', $evaluacion->Id_curso)
+            ->where('Estado', 1)
+            ->first();
+
+        if (!$inscripcion) {
+            return redirect('/estudiante/dashboard')->with('error', 'No estás inscrito en este curso.');
+        }
+
+        // Verificar si ya existe una entrega
+        $entregaExistente = DB::table('entregas')
+            ->where('Id_evaluacion', $idEvaluacion)
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->first();
+
+        // Verificar progreso de evaluación
+        $progresoEvaluacion = DB::table('progreso_evaluacion')
+            ->where('Id_evaluacion', $idEvaluacion)
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->first();
+
+        return view('estudiante.evaluacion_detalle', compact(
+            'usuario',
+            'evaluacion',
+            'entregaExistente',
+            'progresoEvaluacion'
+        ));
+
+    } catch (\Exception $e) {
+        Log::error('ERROR al ver evaluación: ' . $e->getMessage());
+        return redirect('/estudiante/dashboard')->with('error', 'Error al cargar la evaluación.');
+    }
+}
+
+/**
+ * ENVIAR ENTREGA DE EVALUACIÓN
+ */
+public function enviarEntrega(Request $request, $idEvaluacion)
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
+
+    $usuario = session('usuario');
+
+    try {
+        DB::beginTransaction();
+
+        // Validar datos
+        $request->validate([
+            'descripcion' => 'required|string|max:1000',
+            'archivo' => 'nullable|file|max:10240' // 10MB máximo
+        ]);
+
+        // Verificar que no existe entrega previa
+        $entregaExistente = DB::table('entregas')
+            ->where('Id_evaluacion', $idEvaluacion)
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->first();
+
+        if ($entregaExistente) {
+            return back()->with('error', 'Ya has enviado una entrega para esta evaluación.');
+        }
+
+        // Procesar archivo si se subió
+        $nombreArchivo = null;
+        if ($request->hasFile('archivo')) {
+            $archivo = $request->file('archivo');
+            $nombreArchivo = time() . '_' . $archivo->getClientOriginalName();
+            $archivo->storeAs('entregas', $nombreArchivo, 'public');
+        }
+
+        // Crear entrega
+        DB::table('entregas')->insert([
+            'Id_evaluacion' => $idEvaluacion,
+            'Id_usuario' => $usuario->Id_usuario,
+            'Descripcion' => $request->descripcion,
+            'Archivo' => $nombreArchivo,
+            'Fecha_entrega' => now(),
+            'Estado' => 'pendiente',
+            'Puntos_asignados' => 0
+        ]);
+
+        DB::commit();
+
+        Log::info("✅ Entrega enviada - Evaluación: $idEvaluacion, Usuario: {$usuario->Id_usuario}");
+
+        return back()->with('success', '¡Entrega enviada correctamente! El docente la revisará pronto.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('ERROR enviando entrega: ' . $e->getMessage());
+        return back()->with('error', 'Error al enviar la entrega: ' . $e->getMessage());
+    }
+}
+
+/**
+ * VER ENTREGAS DEL ESTUDIANTE
+ */
+public function misEntregas()
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
+
+    $usuario = session('usuario');
+
+    try {
+        $entregas = DB::select("
+            SELECT 
+                e.Id_entrega,
+                e.Descripcion,
+                e.Archivo,
+                e.Fecha_entrega,
+                e.Puntos_asignados,
+                e.Estado,
+                e.Comentario_docente,
+                ev.Tipo as evaluacion_tipo,
+                ev.Puntaje_maximo,
+                m.Nombre as modulo_nombre,
+                c.Titulo as curso_titulo
+            FROM entregas e
+            INNER JOIN evaluaciones ev ON e.Id_evaluacion = ev.Id_evaluacion
+            INNER JOIN modulos m ON ev.Id_modulo = m.Id_modulo
+            INNER JOIN cursos c ON m.Id_curso = c.Id_curso
+            WHERE e.Id_usuario = ?
+            ORDER BY e.Fecha_entrega DESC
+        ", [$usuario->Id_usuario]);
+
+        return view('estudiante.mis_entregas', [
+            'usuario' => $usuario,
+            'entregas' => $entregas
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('ERROR obteniendo entregas: ' . $e->getMessage());
+        return redirect('/estudiante/dashboard')->with('error', 'Error al cargar las entregas.');
+    }
+}
+ public function procesarEntrega(Request $request, $idEvaluacion)
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
+
+    $usuario = session('usuario');
+
+    try {
+        DB::beginTransaction();
+
+        // Validar datos
+        $request->validate([
+            'descripcion' => 'required|string|max:1000',
+            'archivo' => 'nullable|file|max:10240' // 10MB máximo
+        ]);
+
+        // Verificar que no existe entrega previa
+        $entregaExistente = DB::table('entregas')
+            ->where('Id_evaluacion', $idEvaluacion)
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->first();
+
+        if ($entregaExistente) {
+            return back()->with('error', 'Ya has enviado una entrega para esta evaluación.');
+        }
+
+        // Procesar archivo si se subió
+        $nombreArchivo = null;
+        if ($request->hasFile('archivo')) {
+            $archivo = $request->file('archivo');
+            $nombreArchivo = time() . '_' . $archivo->getClientOriginalName();
+            
+            // Crear directorio si no existe
+            if (!file_exists(public_path('storage/entregas'))) {
+                mkdir(public_path('storage/entregas'), 0755, true);
+            }
+            
+            $archivo->move(public_path('storage/entregas'), $nombreArchivo);
+        }
+
+        // Crear entrega
+        DB::table('entregas')->insert([
+            'Id_evaluacion' => $idEvaluacion,
+            'Id_usuario' => $usuario->Id_usuario,
+            'Descripcion' => $request->descripcion,
+            'Archivo' => $nombreArchivo,
+            'Fecha_entrega' => now(),
+            'Estado' => 'pendiente',
+            'Puntos_asignados' => 0
+        ]);
+
+        DB::commit();
+
+        Log::info("✅ Entrega procesada - Evaluación: $idEvaluacion, Usuario: {$usuario->Id_usuario}");
+
+        return back()->with('success', '¡Entrega enviada correctamente! El docente la revisará pronto.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('ERROR procesando entrega: ' . $e->getMessage());
+        return back()->with('error', 'Error al enviar la entrega: ' . $e->getMessage());
+    }
+}
+// En EstudianteController
+// En EstudianteController - método verTema
+// En EstudianteController - método verTema ACTUALIZADO
+public function verTema($idCurso, $idTema)
+{
+    if (!session('usuario')) {
+        return redirect('/login');
+    }
+
+    $usuario = session('usuario');
+
+    try {
+        // Verificar que el usuario está inscrito
+        $inscripcion = DB::table('inscripciones')
+            ->where('Id_usuario', $usuario->Id_usuario)
+            ->where('Id_curso', $idCurso)
+            ->where('Estado', 1)
+            ->first();
+
+        if (!$inscripcion) {
+            return redirect('/estudiante/dashboard')->with('error', 'No estás inscrito en este curso.');
+        }
+
+        // Obtener información del tema CON TODOS LOS CAMPOS NUEVOS
+        $tema = DB::selectOne("
+            SELECT 
+                t.*,
+                m.Nombre as modulo_nombre,
+                m.Id_modulo,
+                c.Titulo as curso_titulo,
+                CASE WHEN pt.Completado = 1 THEN 1 ELSE 0 END as completado
+            FROM temas t
+            INNER JOIN modulos m ON t.Id_modulo = m.Id_modulo
+            INNER JOIN cursos c ON m.Id_curso = c.Id_curso
+            LEFT JOIN progreso_tema pt ON (t.Id_tema = pt.Id_tema AND pt.Id_usuario = ?)
+            WHERE t.Id_tema = ?
+        ", [$usuario->Id_usuario, $idTema]);
+
+        if (!$tema) {
+            return redirect()->route('estudiante.curso.ver', $idCurso)
+                ->with('error', 'Tema no encontrado.');
+        }
+
+        // Obtener temas del módulo para navegación
+        $temas_modulo = DB::select("
+            SELECT 
+                t.Id_tema,
+                t.Nombre,
+                t.Orden,
+                CASE WHEN pt.Completado = 1 THEN 1 ELSE 0 END as completado
+            FROM temas t
+            LEFT JOIN progreso_tema pt ON (t.Id_tema = pt.Id_tema AND pt.Id_usuario = ?)
+            WHERE t.Id_modulo = ?
+            ORDER BY t.Orden
+        ", [$usuario->Id_usuario, $tema->Id_modulo]);
+
+        return view('estudiante.tema_detalle', compact(
+            'usuario',
+            'tema',
+            'temas_modulo',
+            'idCurso'
+        ));
+
+    } catch (\Exception $e) {
+        Log::error('ERROR al ver tema: ' . $e->getMessage());
+        return redirect()->route('estudiante.curso.ver', $idCurso)
+            ->with('error', 'Error al cargar el tema.');
+    }
+}
+// En EstudianteController - CORREGIR el método completarTema
+// En EstudianteController - método completarTema (ACTUALIZAR la sección de porcentaje)
+// En EstudianteController - método completarTema ACTUALIZADO
+public function completarTema(Request $request, $idCurso, $idTema)
+{
+    if (!session('usuario')) {
+        Log::error("❌ No hay usuario en sesión");
+        return response()->json(['success' => false, 'message' => 'No autenticado']);
+    }
+
+    $usuario = session('usuario');
+    $usuarioId = $usuario->Id_usuario;
+
+    Log::info("🎯 === INICIANDO COMPLETADO DE TEMA ===");
+    Log::info("Usuario ID: $usuarioId, Curso: $idCurso, Tema: $idTema");
+
+    try {
+        DB::beginTransaction();
+
+        // 1. VERIFICAR SI EL TEMA YA ESTÁ COMPLETADO POR ESTE USUARIO
+        $progreso_tema = DB::table('progreso_tema')
+            ->where('Id_tema', $idTema)
+            ->where('Id_usuario', $usuarioId)
+            ->where('Completado', 1)
+            ->first();
+
+        if ($progreso_tema) {
+            Log::warning("⚠️ Tema $idTema YA estaba completado por usuario $usuarioId");
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Este tema ya estaba completado']);
+        }
+
+        Log::info("✅ Tema $idTema no completado, procediendo...");
+
+        // 2. CREAR REGISTRO EN progreso_tema
+        DB::table('progreso_tema')->insert([
+            'Id_usuario' => $usuarioId,
+            'Id_tema' => $idTema,
+            'Completado' => 1,
+            'Porcentaje' => 100,
+            'Fecha_completado' => now()
+        ]);
+
+        Log::info("✅ Progreso_tema creado para tema $idTema, usuario $usuarioId");
+
+        // 3. OBTENER PROGRESO DEL CURSO
+        $progreso = DB::table('progreso_curso')
+            ->where('Id_usuario', $usuarioId)
+            ->where('Id_curso', $idCurso)
+            ->first();
+
+        if (!$progreso) {
+            Log::error("❌ No se encontró progreso del curso $idCurso para usuario $usuarioId");
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'No estás inscrito en este curso']);
+        }
+
+        // 4. ACTUALIZAR ESTADÍSTICAS DEL CURSO - CÁLCULO MEJORADO
+        // Calcular total de temas del curso
+        $total_temas_curso = DB::selectOne("
+            SELECT COUNT(*) as total 
+            FROM temas t
+            INNER JOIN modulos m ON t.Id_modulo = m.Id_modulo
+            WHERE m.Id_curso = ?
+        ", [$idCurso])->total;
+
+        $temas_completados_curso = DB::selectOne("
+            SELECT COUNT(*) as completados
+            FROM progreso_tema pt
+            INNER JOIN temas t ON pt.Id_tema = t.Id_tema
+            INNER JOIN modulos m ON t.Id_modulo = m.Id_modulo
+            WHERE m.Id_curso = ? AND pt.Id_usuario = ? AND pt.Completado = 1
+        ", [$idCurso, $usuarioId])->completados;
+
+        $nuevo_porcentaje = $total_temas_curso > 0 ? 
+            round(($temas_completados_curso / $total_temas_curso) * 100) : 0;
+        $nuevo_porcentaje = min(100, $nuevo_porcentaje);
+
+        Log::info("📈 Progreso actualizado: $temas_completados_curso/$total_temas_curso temas = $nuevo_porcentaje%");
+
+        // Actualizar progreso del curso
+        DB::table('progreso_curso')
+            ->where('Id_progreso', $progreso->Id_progreso)
+            ->update([
+                'Temas_completados' => $temas_completados_curso,
+                'Porcentaje' => $nuevo_porcentaje,
+                'Fecha_actualizacion' => now()
+            ]);
+
+        Log::info("✅ Progreso del curso actualizado");
+
+        // 5. ASIGNAR PUNTOS POR TEMA COMPLETADO (10 puntos)
+        Log::info("💰 Asignando 10 puntos por tema completado");
+        $puntosAsignados = $this->asignarPuntos($usuarioId, 10, "Tema completado - Curso: $idCurso, Tema: $idTema");
+
+        // 6. VERIFICAR MÓDULO COMPLETADO
+        $moduloCompletado = $this->verificarYAsignarPuntosModulo($usuarioId, $idCurso, $idTema);
+        
+        // 7. VERIFICAR CURSO COMPLETADO
+        $cursoCompletado = $this->verificarYAsignarPuntosCurso($usuarioId, $idCurso);
+
+        DB::commit();
+
+        Log::info("🎉 === TEMA COMPLETADO EXITOSAMENTE ===");
+        Log::info("📊 Resumen:");
+        Log::info("   - Puntos por tema: +10");
+        Log::info("   - Módulo completado: " . ($moduloCompletado ? 'SÍ (+50)' : 'NO'));
+        Log::info("   - Curso completado: " . ($cursoCompletado ? 'SÍ (+200)' : 'NO'));
+
+        // RESPONDER CON JSON PERO SIN REDIRECCIÓN
+        return response()->json([
+            'success' => true, 
+            'message' => '¡Tema completado exitosamente!' . 
+                        ($moduloCompletado ? ' + Módulo completado!' : '') .
+                        ($cursoCompletado ? ' + Curso completado!' : ''),
+            'puntos_otorgados' => 10 + ($moduloCompletado ? 50 : 0) + ($cursoCompletado ? 200 : 0),
+            'nuevo_porcentaje' => $nuevo_porcentaje,
+            'temas_completados' => $temas_completados_curso,
+            'total_temas' => $total_temas_curso,
+            'redirect' => false // ← IMPORTANTE: Evitar redirección
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('❌ ERROR en completarTema: ' . $e->getMessage());
+        Log::error('Trace: ' . $e->getTraceAsString());
+        return response()->json(['success' => false, 'message' => 'Error interno del sistema: ' . $e->getMessage()]);
+    }
+}
 }
