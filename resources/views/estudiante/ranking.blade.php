@@ -57,7 +57,7 @@
                 <div class="col-md-6 offset-md-3">
                     <div class="bg-white rounded p-3 text-dark">
                         <small class="text-muted">Periodo Actual</small>
-                        <h4 class="text-primary mb-0">{{ \Carbon\Carbon::parse($periodo . '-01')->translatedFormat('F Y') }}</h4>
+                        <h4 class="text-primary mb-0">{{ $periodo }}</h4>
                         <small class="text-muted">{{ $total_participantes }} participantes</small>
                     </div>
                 </div>
@@ -81,7 +81,7 @@
                                 <small class="text-muted">de {{ $total_participantes }} participantes</small>
                             </div>
                             <div class="col-md-4">
-                                <h4 class="text-success">{{ $miPosicion->Total_puntos_acumulados }}</h4>
+                                <h4 class="text-success">{{ number_format($miPosicion->Total_puntos_acumulados) }}</h4>
                                 <small class="text-muted">puntos acumulados</small>
                             </div>
                             <div class="col-md-4">
@@ -96,8 +96,22 @@
         @endif
 
         <!-- Top 3 -->
-        @if(count($ranking) >= 3)
+        @php
+            // Buscar los top 3 en el array
+            $top1 = null;
+            $top2 = null;
+            $top3 = null;
+            
+            foreach($ranking as $participante) {
+                if($participante->Posicion == 1) $top1 = $participante;
+                if($participante->Posicion == 2) $top2 = $participante;
+                if($participante->Posicion == 3) $top3 = $participante;
+            }
+        @endphp
+        
+        @if($top1 && $top2 && $top3)
         <div class="row mb-5">
+            <!-- Segundo Lugar -->
             <div class="col-md-4 mb-3">
                 <div class="card top-3-card top-2 text-center h-100">
                     <div class="card-body">
@@ -105,14 +119,16 @@
                             <i class="fas fa-medal"></i>
                         </div>
                         <h2 class="text-muted">#2</h2>
-                        <h5 class="card-title">{{ $ranking[1]->Nombre }} {{ $ranking[1]->Apellido }}</h5>
+                        <h5 class="card-title">{{ $top2->Nombre }} {{ $top2->Apellido }}</h5>
                         <p class="card-text">
-                            <span class="h4 text-success">{{ $ranking[1]->Total_puntos_acumulados }}</span><br>
+                            <span class="h4 text-success">{{ number_format($top2->Total_puntos_acumulados) }}</span><br>
                             <small class="text-muted">puntos</small>
                         </p>
                     </div>
                 </div>
             </div>
+            
+            <!-- Primer Lugar -->
             <div class="col-md-4 mb-3">
                 <div class="card top-3-card top-1 text-center h-100 shadow-lg">
                     <div class="card-body">
@@ -120,14 +136,16 @@
                             <i class="fas fa-crown"></i>
                         </div>
                         <h2 class="text-warning">#1</h2>
-                        <h5 class="card-title">{{ $ranking[0]->Nombre }} {{ $ranking[0]->Apellido }}</h5>
+                        <h5 class="card-title">{{ $top1->Nombre }} {{ $top1->Apellido }}</h5>
                         <p class="card-text">
-                            <span class="h3 text-success">{{ $ranking[0]->Total_puntos_acumulados }}</span><br>
+                            <span class="h3 text-success">{{ number_format($top1->Total_puntos_acumulados) }}</span><br>
                             <small class="text-muted">puntos</small>
                         </p>
                     </div>
                 </div>
             </div>
+            
+            <!-- Tercer Lugar -->
             <div class="col-md-4 mb-3">
                 <div class="card top-3-card top-3 text-center h-100">
                     <div class="card-body">
@@ -135,9 +153,9 @@
                             <i class="fas fa-medal"></i>
                         </div>
                         <h2 class="text-warning">#3</h2>
-                        <h5 class="card-title">{{ $ranking[2]->Nombre }} {{ $ranking[2]->Apellido }}</h5>
+                        <h5 class="card-title">{{ $top3->Nombre }} {{ $top3->Apellido }}</h5>
                         <p class="card-text">
-                            <span class="h4 text-success">{{ $ranking[2]->Total_puntos_acumulados }}</span><br>
+                            <span class="h4 text-success">{{ number_format($top3->Total_puntos_acumulados) }}</span><br>
                             <small class="text-muted">puntos</small>
                         </p>
                     </div>
@@ -167,8 +185,15 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($ranking as $index => $participante)
-                                    <tr class="{{ $participante->es_usuario_actual ? 'usuario-actual' : '' }}">
+                                    @php
+                                        // Ordenar el array por posición (ya es array, no necesita toArray())
+                                        usort($ranking, function($a, $b) {
+                                            return $a->Posicion - $b->Posicion;
+                                        });
+                                    @endphp
+                                    
+                                    @foreach($ranking as $participante)
+                                    <tr class="{{ isset($participante->es_usuario_actual) && $participante->es_usuario_actual ? 'usuario-actual' : '' }}">
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 @if($participante->Posicion <= 3)
@@ -190,7 +215,7 @@
                                                 <div>
                                                     <strong>{{ $participante->Nombre }} {{ $participante->Apellido }}</strong>
                                                     <br>
-                                                    <small class="{{ $participante->es_usuario_actual ? 'text-light' : 'text-muted' }}">
+                                                    <small class="{{ isset($participante->es_usuario_actual) && $participante->es_usuario_actual ? 'text-light' : 'text-muted' }}">
                                                         {{ $participante->Email }}
                                                     </small>
                                                 </div>
@@ -198,7 +223,7 @@
                                         </td>
                                         <td>
                                             <span class="badge bg-success fs-6">
-                                                {{ $participante->Total_puntos_acumulados }} pts
+                                                {{ number_format($participante->Total_puntos_acumulados) }} pts
                                             </span>
                                         </td>
                                         <td>

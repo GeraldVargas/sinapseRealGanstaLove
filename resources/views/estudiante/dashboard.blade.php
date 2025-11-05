@@ -172,14 +172,13 @@
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="bg-white rounded p-3 text-dark shadow">
-                                <small class="text-muted">Tus Puntos Actuales</small>
+                                <small class="text-muted">Tus Puntos Totales</small>
                                 <div class="puntos-realtime" id="puntos-header">
-    @if($gestion_puntos)
-        {{ number_format($gestion_puntos->Total_puntos_actual) }}
-    @else
-        0
-    @endif
-</div>
+                                    @if($gestion_puntos)
+                                        {{ number_format($gestion_puntos->Total_puntos_acumulados) }}
+                                    @else
+                                        0
+                                    @endif
                                 </div>
                                 <small class="text-muted">
                                     <i class="fas fa-sync-alt me-1"></i>Actualizados en tiempo real
@@ -191,8 +190,6 @@
             </div>
         </div>
     </div>
-    <!-- En resources/views/estudiante/dashboard.blade.php -->
-
 
     <!-- Alertas -->
     @if(session('success'))
@@ -236,46 +233,46 @@
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <h5 class="card-title text-primary">{{ $curso->Titulo }}</h5>
-<span class="badge bg-primary">Nivel {{ $curso->Nivel ?? 1 }}</span>
+                                            <span class="badge bg-primary">Nivel {{ $curso->Nivel ?? 1 }}</span>
                                         </div>
                                         
                                         <p class="card-text text-muted small mb-3">
                                             {{ Str::limit($curso->Descripcion, 100) }}
                                         </p>
                                         
-                                       <!-- Barra de Progreso -->
-<div class="mb-3">
-    <div class="d-flex justify-content-between mb-1">
-        <small class="text-muted">Progreso del curso</small>
-        <small class="text-muted fw-bold">{{ $curso->Porcentaje ?? 0 }}%</small>
-    </div>
-    <div class="progress course-progress">
-        <div class="progress-bar bg-success" 
-             style="width: {{ $curso->Porcentaje ?? 0 }}%"
-             role="progressbar"
-             aria-valuenow="{{ $curso->Porcentaje ?? 0 }}" 
-             aria-valuemin="0" 
-             aria-valuemax="100">
-        </div>
-    </div>
-</div>
+                                        <!-- Barra de Progreso -->
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <small class="text-muted">Progreso del curso</small>
+                                                <small class="text-muted fw-bold">{{ $curso->Porcentaje ?? 0 }}%</small>
+                                            </div>
+                                            <div class="progress course-progress">
+                                                <div class="progress-bar bg-success" 
+                                                     style="width: {{ $curso->Porcentaje ?? 0 }}%"
+                                                     role="progressbar"
+                                                     aria-valuenow="{{ $curso->Porcentaje ?? 0 }}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                        </div>
                                         
                                         <div class="course-stats mb-3">
-    <div class="row text-center">
-        <div class="col-4">
-            <small class="text-muted">Módulos</small>
-            <div class="fw-bold text-primary">{{ $curso->total_modulos ?? 0 }}</div>
-        </div>
-        <div class="col-4">
-            <small class="text-muted">Evaluaciones</small>
-            <div class="fw-bold text-warning">{{ $curso->total_evaluaciones ?? 0 }}</div>
-        </div>
-        <div class="col-4">
-            <small class="text-muted">Duración</small>
-            <div class="fw-bold text-info">{{ $curso->Duracion ?? 0 }}h</div>
-        </div>
-    </div>
-</div>
+                                            <div class="row text-center">
+                                                <div class="col-4">
+                                                    <small class="text-muted">Módulos</small>
+                                                    <div class="fw-bold text-primary">{{ $curso->total_modulos ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="text-muted">Evaluaciones</small>
+                                                    <div class="fw-bold text-warning">{{ $curso->total_evaluaciones ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="text-muted">Duración</small>
+                                                    <div class="fw-bold text-info">{{ $curso->Duracion ?? 0 }}h</div>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         <div class="d-grid">
                                             <a href="{{ route('estudiante.curso.ver', $curso->Id_curso) }}" 
@@ -302,49 +299,49 @@
             </div>
 
             <!-- Evaluaciones Pendientes -->
-            @if($evaluaciones_pendientes->count() > 0)
-            <div class="card card-dashboard" id="evaluaciones-pendientes">
-                <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0">
-                        <i class="fas fa-file-alt me-2"></i>Evaluaciones Pendientes
-                        <span class="badge bg-danger ms-2">{{ $evaluaciones_pendientes->count() }}</span>
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        @foreach($evaluaciones_pendientes as $evaluacion)
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100" style="border-left: 4px solid #ffc107;">
-                                <div class="card-body">
-                                    <h6 class="card-title">{{ $evaluacion->Tipo }}</h6>
-                                    <p class="card-text small text-muted mb-1">
-                                        <strong>Curso:</strong> {{ $evaluacion->curso_titulo }}
-                                    </p>
-                                    <p class="card-text small text-muted mb-2">
-                                        <strong>Módulo:</strong> {{ $evaluacion->modulo_nombre }}
-                                    </p>
-                                    
-                                    <div class="evaluation-info mb-3">
-                                        <div class="d-flex justify-content-between small text-muted">
-                                            <span><i class="fas fa-star me-1"></i>{{ $evaluacion->Puntaje_maximo }} pts</span>
-                                            <span><i class="fas fa-clock me-1"></i>Vence: {{ \Carbon\Carbon::parse($evaluacion->Fecha_fin)->format('d/m H:i') }}</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-grid">
-                                        <a href="{{ route('estudiante.evaluacion.ver', $evaluacion->Id_evaluacion) }}" 
-                                           class="btn btn-warning btn-sm">
-                                            <i class="fas fa-play me-1"></i>Comenzar Evaluación
-                                        </a>
-                                    </div>
-                                </div>
+@if(count($evaluaciones_pendientes) > 0)
+<div class="card card-dashboard" id="evaluaciones-pendientes">
+    <div class="card-header bg-warning text-dark">
+        <h4 class="mb-0">
+            <i class="fas fa-file-alt me-2"></i>Evaluaciones Pendientes
+            <span class="badge bg-danger ms-2">{{ count($evaluaciones_pendientes) }}</span>
+        </h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            @foreach($evaluaciones_pendientes as $evaluacion)
+            <div class="col-md-6 mb-3">
+                <div class="card h-100" style="border-left: 4px solid #ffc107;">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ $evaluacion->Tipo }}</h6>
+                        <p class="card-text small text-muted mb-1">
+                            <strong>Curso:</strong> {{ $evaluacion->curso_titulo }}
+                        </p>
+                        <p class="card-text small text-muted mb-2">
+                            <strong>Módulo:</strong> {{ $evaluacion->modulo_nombre }}
+                        </p>
+                        
+                        <div class="evaluation-info mb-3">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span><i class="fas fa-star me-1"></i>{{ $evaluacion->Puntaje_maximo }} pts</span>
+                                <span><i class="fas fa-clock me-1"></i>Vence: {{ \Carbon\Carbon::parse($evaluacion->Fecha_fin)->format('d/m H:i') }}</span>
                             </div>
                         </div>
-                        @endforeach
+
+                        <div class="d-grid">
+                            <a href="{{ route('estudiante.evaluacion.ver', $evaluacion->Id_evaluacion) }}" 
+                               class="btn btn-warning btn-sm">
+                                <i class="fas fa-play me-1"></i>Comenzar Evaluación
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
-            @endif
+            @endforeach
+        </div>
+    </div>
+</div>
+@endif
 
             <!-- Progreso General -->
             <div class="card card-dashboard">
@@ -371,19 +368,19 @@
                                 <p class="mb-0">Módulos Activos</p>
                             </div>
                         </div>
-                        <!-- Busca esta sección alrededor de la línea 280 -->
-<div class="col-md-3 mb-3">
-    <div class="stat-card bg-danger">
-        <h3 id="puntos-statcard">
-            @if($gestion_puntos)
-                {{ number_format($gestion_puntos->Total_puntos_acumulados) }}
-            @else
-                0
-            @endif
-        </h3>
-        <p class="mb-0">Puntos Totales</p>
-    </div>
-</div>
+                        <!-- MODIFICADO: Puntos Actuales ahora muestra Total_puntos_actual -->
+                        <div class="col-md-3 mb-3">
+                            <div class="stat-card bg-danger">
+                                <h3 id="puntos-statcard">
+                                    @if($gestion_puntos)
+                                        {{ number_format($gestion_puntos->Total_puntos_actual) }}
+                                    @else
+                                        0
+                                    @endif
+                                </h3>
+                                <p class="mb-0">Puntos Actuales</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -392,50 +389,49 @@
         <!-- Columna Lateral -->
         <div class="col-lg-4">
             <!-- Sistema de Puntos -->
+            @if($gestion_puntos)
+            <div class="card card-dashboard">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0"><i class="fas fa-coins me-2"></i>Mis Puntos</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <h3 class="text-warning" id="puntos-sidebar">
+                            @if($gestion_puntos)
+                                {{ number_format($gestion_puntos->Total_puntos_acumulados) }}
+                            @else
+                                0
+                            @endif
+                        </h3>
+                        <small class="text-muted">Puntos Totales</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Puntos Disponibles</small>
+                        <div class="h5 text-primary" id="puntos-actuales">
+                            @if($gestion_puntos)
+                                {{ number_format($gestion_puntos->Total_puntos_actual) }}
+                            @else
+                                0
+                            @endif
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="/canjes" class="btn btn-warning btn-sm">
+                            <i class="fas fa-gift me-2"></i>Canjear Recompensas
+                        </a>
+                    </div>
 
-@if($gestion_puntos)
-<div class="card card-dashboard">
-    <div class="card-header bg-warning text-dark">
-        <h4 class="mb-0"><i class="fas fa-coins me-2"></i>Mis Puntos</h4>
-    </div>
-    <div class="card-body text-center">
-        <div class="mb-3">
-            <h3 class="text-warning" id="puntos-sidebar">
-                @if($gestion_puntos)
-                    {{ number_format($gestion_puntos->Total_puntos_actual) }}
-                @else
-                    0
-                @endif
-            </h3>
-            <small class="text-muted">Puntos Disponibles</small>
-        </div>
-        
-        <div class="mb-3">
-            <small class="text-muted">Puntos Acumulados Totales</small>
-            <div class="h5 text-primary">
-                @if($gestion_puntos)
-                    {{ number_format($gestion_puntos->Total_puntos_acumulados) }}
-                @else
-                    0
-                @endif
+                    @if($ranking_actual)
+                    <div class="text-center mt-3 pt-3 border-top">
+                        <small class="text-muted">Tu Ranking Mensual</small>
+                        <h4 class="text-primary">#{{ $ranking_actual->Posicion }}</h4>
+                    </div>
+                    @endif
+                </div>
             </div>
-        </div>
-        
-        <div class="d-grid gap-2">
-            <a href="/canjes" class="btn btn-warning btn-sm">
-                <i class="fas fa-gift me-2"></i>Canjear Recompensas
-            </a>
-        </div>
-
-        @if($ranking_actual)
-        <div class="text-center mt-3 pt-3 border-top">
-            <small class="text-muted">Tu Ranking Mensual</small>
-            <h4 class="text-primary">#{{ $ranking_actual->Posicion }}</h4>
-        </div>
-        @endif
-    </div>
-</div>
-@endif
+            @endif
 
             <!-- Acciones Rápidas -->
             <div class="card card-dashboard">
@@ -562,14 +558,15 @@
 $(document).ready(function() {
     // Actualizar puntos en tiempo real
     function actualizarPuntos() {
-    $.get('/estudiante/puntos-actuales', function(data) {
-        $('#puntos-header').text(data.puntos_actual.toLocaleString());
-        $('#puntos-sidebar').text(data.puntos_actual.toLocaleString());
-        $('#puntos-statcard').text(data.puntos_acumulados.toLocaleString());
-    }).fail(function(xhr, status, error) {
-        console.error('Error al actualizar puntos:', error);
-    });
-}
+        $.get('/estudiante/puntos-actuales', function(data) {
+            $('#puntos-header').text(data.puntos_acumulados.toLocaleString());
+            $('#puntos-sidebar').text(data.puntos_acumulados.toLocaleString());
+            $('#puntos-statcard').text(data.puntos_actuales.toLocaleString());
+            $('#puntos-actuales').text(data.puntos_actuales.toLocaleString());
+        }).fail(function(xhr, status, error) {
+            console.error('Error al actualizar puntos:', error);
+        });
+    }
     
     // Actualizar inmediatamente y luego cada 30 segundos
     actualizarPuntos();
@@ -586,29 +583,24 @@ $(document).ready(function() {
         }, 800);
     });
 });
-</script>
-<script>
-    // En dashboard.blade.php - Actualizar puntos en tiempo real
+
+// Función para actualización en tiempo real
 function actualizarPuntosTiempoReal() {
     fetch('/estudiante/puntos-actuales')
         .then(response => response.json())
         .then(data => {
             // Actualizar todos los elementos que muestran puntos
-            document.querySelectorAll('[id*="puntos"]').forEach(element => {
-                if (element.id.includes('header') || element.id.includes('sidebar')) {
-                    element.textContent = data.puntos_actual.toLocaleString();
-                }
-                if (element.id.includes('statcard')) {
-                    element.textContent = data.puntos_acumulados.toLocaleString();
-                }
-            });
+            document.getElementById('puntos-header').textContent = data.puntos_acumulados.toLocaleString();
+            document.getElementById('puntos-sidebar').textContent = data.puntos_acumulados.toLocaleString();
+            document.getElementById('puntos-statcard').textContent = data.puntos_actuales.toLocaleString();
+            document.getElementById('puntos-actuales').textContent = data.puntos_actuales.toLocaleString();
             
             // Mostrar notificación si hay cambios
-            if (window.puntosAnteriors !== data.puntos_actual) {
+            if (window.puntosAnteriors !== data.puntos_acumulados) {
                 if (window.puntosAnteriors !== undefined) {
-                    mostrarNotificacionPuntos(data.puntos_actual - window.puntosAnteriors);
+                    mostrarNotificacionPuntos(data.puntos_acumulados - window.puntosAnteriors);
                 }
-                window.puntosAnteriors = data.puntos_actual;
+                window.puntosAnteriors = data.puntos_acumulados;
             }
         })
         .catch(error => console.error('Error actualizando puntos:', error));
@@ -643,6 +635,6 @@ function mostrarNotificacionPuntos(puntosGanados) {
 setInterval(actualizarPuntosTiempoReal, 5000);
 // Actualizar inmediatamente al cargar
 actualizarPuntosTiempoReal();
-    </script>
+</script>
 </body>
 </html>
